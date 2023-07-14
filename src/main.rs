@@ -1,4 +1,10 @@
+pub mod models;
+pub mod schema;
+
 use ::chrono::{DateTime, Utc};
+use diesel::prelude::*;
+use diesel::MysqlConnection;
+use dotenvy::dotenv;
 use serde_with::formats::Flexible;
 use serde_with::BoolFromInt;
 use serde_with::TimestampSeconds;
@@ -24,7 +30,8 @@ struct Record {
     unit: Option<u16>,
     lon: f32,
     lat: f32,
-    range: u32,
+    #[serde(alias = "range")]
+    cell_range: u32,
     samples: u32,
     #[serde_as(as = "BoolFromInt")]
     changeable: bool,
@@ -33,6 +40,14 @@ struct Record {
     #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
     updated: DateTime<Utc>,
     average_signal: Option<i16>,
+}
+
+pub fn establish_connection() -> MysqlConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    MysqlConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
