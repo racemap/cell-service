@@ -1,46 +1,12 @@
 pub mod models;
 pub mod schema;
 
-use ::chrono::{DateTime, Utc};
+use crate::models::Cell;
+use crate::schema::cells;
 use diesel::prelude::*;
 use diesel::MysqlConnection;
 use dotenvy::dotenv;
-use serde_with::formats::Flexible;
-use serde_with::BoolFromInt;
-use serde_with::TimestampSeconds;
 use std::{env, error::Error, ffi::OsString, process};
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Radio {
-    Gsm,
-    Umts,
-    Lte,
-}
-
-#[serde_with::serde_as]
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Record {
-    radio: Radio,
-    mcc: u16,
-    net: u16,
-    area: u16,
-    cell: u32,
-    unit: Option<u16>,
-    lon: f32,
-    lat: f32,
-    #[serde(alias = "range")]
-    cell_range: u32,
-    samples: u32,
-    #[serde_as(as = "BoolFromInt")]
-    changeable: bool,
-    #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
-    created: DateTime<Utc>,
-    #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
-    updated: DateTime<Utc>,
-    average_signal: Option<i16>,
-}
 
 pub fn establish_connection() -> MysqlConnection {
     dotenv().ok();
@@ -52,14 +18,33 @@ pub fn establish_connection() -> MysqlConnection {
 
 fn run() -> Result<(), Box<dyn Error>> {
     let file_path = get_first_arg()?;
+    let connection = &mut establish_connection();
 
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_path(file_path)?;
 
     for result in rdr.deserialize() {
-        let record: Record = result?;
+        let record: Cell = result?;
         println!("{:?}", record);
+
+        // diesel::insert_into(cells::table)
+        //     .values(&record)
+        //     .execute(connection)
+        //     .expect("Error inserting cell");
+
+        // TODO: insert data directly
+        // LOAD Data INFILE '/Users/karlwolffgang/racemap-cells/data/MLS-full-cell-export-2023-07-15T000000.csv'
+        // REPLACE INTO TABLE cells
+        // FIELDS TERMINATED BY ','
+        // LINES TERMINATED BY '\r\n'
+        // IGNORE 1 LINES
+        // (radio, mcc, net, area, cell, @unit, lon, lat, cell_range, samples, changeable, @created, @updated, @average_signal)
+        // SET
+        // unit = NULLIF(@unit, ''),
+        // average_signal = NULLIF(@average_signal, ''),
+        // created = FROM_UNIXTIME(@created),
+        // updated = FROM_UNIXTIME(@updated);
     }
     Ok(())
 }

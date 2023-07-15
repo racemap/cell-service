@@ -48,7 +48,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Cell {
+pub struct Cell {
     radio: Radio,
     mcc: u16,
     net: u16,
