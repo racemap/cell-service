@@ -69,7 +69,7 @@ pub struct Cell {
     average_signal: Option<i16>,
 }
 
-#[derive(Debug, FromSqlRow, AsExpression)]
+#[derive(Debug, FromSqlRow, AsExpression, PartialEq, Eq)]
 #[sql_type = "LastUpdatesUpdateTypeEnum"]
 pub enum LastUpdatesType {
     Full,
@@ -100,6 +100,6 @@ impl FromSql<LastUpdatesUpdateTypeEnum, Mysql> for LastUpdatesType {
 #[diesel(table_name = crate::schema::last_updates)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct LastUpdates {
-    update_type: LastUpdatesType,
-    value: NaiveDateTime,
+    pub update_type: LastUpdatesType,
+    pub value: NaiveDateTime,
 }

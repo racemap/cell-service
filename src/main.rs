@@ -3,7 +3,7 @@ pub mod schema;
 pub mod utils;
 
 use utils::{
-    data::load_last_full,
+    data::{load_last_diff, load_last_full},
     utils::{FutureError, Promise},
 };
 
@@ -12,7 +12,7 @@ use std::{error::Error, process};
 async fn run() -> Promise<()> {
     // let input_path = String::from(get_first_arg()?.to_str().unwrap());
     // load_data(input_path)
-    load_last_full().await
+    load_last_diff().await
 }
 
 #[tokio::main]

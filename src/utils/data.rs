@@ -1,15 +1,20 @@
-use std::{env, error::Error, io::Cursor};
+use std::env;
+use std::io::Error;
 
+use crate::models::LastUpdatesType;
 use async_compression::tokio::bufread::GzipDecoder;
+use chrono::DateTime;
 use chrono::Datelike;
+use chrono::TimeZone;
 use chrono::Timelike;
 use chrono::Utc;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
-use tokio_util::io::StreamReader;
 
 use super::db::establish_connection;
+use super::db::get_last_update;
+use super::db::set_last_update;
 use super::utils::Promise;
 
 fn get_url_of_full_package(date: chrono::DateTime<Utc>) -> String {
@@ -33,15 +38,7 @@ fn get_url_of_diff_package(date: chrono::DateTime<Utc>) -> String {
     )
 }
 
-fn convert_error(err: reqwest::Error) -> std::io::Error {
-    todo!()
-}
-
-pub async fn load_last_full() -> Promise<()> {
-    let today = chrono::offset::Utc::now();
-    let url = get_url_of_full_package(today);
-
-    println!("Downloading from: {}", url);
+async fn load_url(url: String, output: String) -> Promise<()> {
     let response = reqwest::get(url).await?;
 
     if response.status().as_u16() != 200 {
@@ -56,14 +53,78 @@ pub async fn load_last_full() -> Promise<()> {
     let decoder = GzipDecoder::new(stream);
     let mut buf_reader = tokio::io::BufReader::new(decoder);
 
-    println!("Saving to: data/MLS-full-cell-export.csv");
-    let mut file_2 = tokio::fs::File::create("data/MLS-full-cell-export.csv").await?;
+    let mut file_2 = tokio::fs::File::create(output).await?;
     tokio::io::copy(&mut buf_reader, &mut file_2).await?;
 
     Ok(())
 }
 
-pub fn load_data(input_path: String) -> Result<(), Box<dyn Error>> {
+fn convert_error(err: reqwest::Error) -> std::io::Error {
+    todo!()
+}
+
+fn check_last_update(last_update: DateTime<Utc>, last_update_type: LastUpdatesType) -> bool {
+    let today = chrono::offset::Utc::now();
+    if last_update.year() != today.year() {
+        return false;
+    };
+    if last_update.month() != today.month() {
+        return false;
+    };
+    if last_update.day() != today.day() {
+        return false;
+    };
+    if last_update_type == LastUpdatesType::Full {
+        return true;
+    };
+    if last_update.hour() != today.hour() {
+        return false;
+    };
+    return true;
+}
+
+pub async fn load_last_full() -> Promise<()> {
+    let today = chrono::offset::Utc::now();
+    let url = get_url_of_full_package(today);
+    let output_path = String::from("data/MLS-full-cell-export.csv");
+
+    let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Full)?);
+
+    if check_last_update(DateTime::from(last_update), LastUpdatesType::Full) {
+        println!("{:?} Data is up to date.", LastUpdatesType::Full);
+        return Ok(());
+    }
+
+    load_url(url, output_path.clone()).await?;
+    load_data(output_path)?;
+
+    set_last_update(LastUpdatesType::Full, today.naive_utc())?;
+
+    Ok(())
+}
+
+pub async fn load_last_diff() -> Promise<()> {
+    let today = chrono::offset::Utc::now();
+    let url = get_url_of_diff_package(today);
+    let output_path = String::from("data/MLS-diff-cell-export.csv");
+
+    let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Diff)?);
+
+    if check_last_update(DateTime::from(last_update), LastUpdatesType::Diff) {
+        println!("{:?} Data is up to date.", LastUpdatesType::Diff);
+        return Ok(());
+    }
+
+    load_url(url, String::from("data/MLS-diff-cell-export.csv")).await?;
+    load_data(output_path)?;
+
+    set_last_update(LastUpdatesType::Diff, today.naive_utc())?;
+
+    Ok(())
+}
+
+pub fn load_data(input_path: String) -> Result<(), Error> {
+    // TODO: make async
     let full_path = match input_path.starts_with("/") {
         true => input_path,
         false => {
@@ -90,7 +151,7 @@ pub fn load_data(input_path: String) -> Result<(), Box<dyn Error>> {
 
     match res {
         Ok(writes) => println!("Success: {:?} writes.", writes),
-        Err(e) => println!("Error: {:?}", e),
+        Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
     }
     Ok(())
 }
