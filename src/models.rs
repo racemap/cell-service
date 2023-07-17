@@ -1,4 +1,4 @@
-use crate::schema::sql_types::CellsRadioEnum;
+use crate::schema::sql_types::{CellsRadioEnum, LastUpdatesUpdateTypeEnum};
 use chrono::NaiveDateTime;
 use diesel::deserialize::FromSql;
 use diesel::mysql::{Mysql, MysqlValue};
@@ -67,4 +67,39 @@ pub struct Cell {
     #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
     updated: NaiveDateTime,
     average_signal: Option<i16>,
+}
+
+#[derive(Debug, FromSqlRow, AsExpression)]
+#[sql_type = "LastUpdatesUpdateTypeEnum"]
+pub enum LastUpdatesType {
+    Full,
+    Diff,
+}
+
+impl ToSql<LastUpdatesUpdateTypeEnum, Mysql> for LastUpdatesType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
+        match *self {
+            LastUpdatesType::Full => out.write_all(b"full")?,
+            LastUpdatesType::Diff => out.write_all(b"diff")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<LastUpdatesUpdateTypeEnum, Mysql> for LastUpdatesType {
+    fn from_sql(bytes: MysqlValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"full" => Ok(LastUpdatesType::Full),
+            b"diff" => Ok(LastUpdatesType::Diff),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+#[derive(Queryable, Selectable, Insertable)]
+#[diesel(table_name = crate::schema::last_updates)]
+#[diesel(check_for_backend(diesel::mysql::Mysql))]
+pub struct LastUpdates {
+    update_type: LastUpdatesType,
+    value: NaiveDateTime,
 }
