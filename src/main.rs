@@ -2,17 +2,24 @@ pub mod models;
 pub mod schema;
 pub mod utils;
 
-use std::cell::Cell;
+use std::sync::Arc;
 
 use tokio::signal::ctrl_c;
+use tokio::sync::Mutex;
 use utils::data::update_loop;
+use utils::utils::{flatten, FutureError};
 
-async fn process_handling(halt: &Cell<bool>) {
-    while !halt.get() {
+async fn process_handling(halt: &Arc<Mutex<bool>>) -> Result<(), FutureError> {
+    loop {
+        if *halt.lock().await {
+            return Ok(());
+        }
+
         tokio::select! {
             _ = ctrl_c() => {
                 println!("Ctrl-C received. Shutting down...");
-                halt.set(true);
+                let mut lock = halt.lock().await;
+                *lock = true;
             }
         }
     }
@@ -20,7 +27,17 @@ async fn process_handling(halt: &Cell<bool>) {
 
 #[tokio::main]
 async fn main() {
-    let halt = Cell::new(false);
+    lazy_static::lazy_static! {
+        static ref HALT: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    }
 
-    tokio::join!(update_loop(&halt), process_handling(&halt));
+    let process = tokio::spawn(process_handling(&HALT));
+    let update = tokio::spawn(update_loop(&HALT));
+
+    match tokio::try_join!(flatten(update), flatten(process)) {
+        Ok(_) => {}
+        Err(err) => {
+            println!("Failed with {}.", err);
+        }
+    }
 }

@@ -957,6 +957,7 @@ dependencies = [
  "diesel-derive-enum",
  "dotenvy",
  "futures",
+ "lazy_static",
  "libflate",
  "reqwest",
  "serde",

@@ -1,6 +1,6 @@
-use std::cell::Cell;
 use std::env;
 use std::io::Error;
+use std::sync::Arc;
 
 use crate::models::LastUpdatesType;
 use async_compression::tokio::bufread::GzipDecoder;
@@ -11,7 +11,7 @@ use chrono::Timelike;
 use chrono::Utc;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
-use tokio::task::yield_now;
+use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 
 use super::db::establish_connection;
@@ -41,10 +41,10 @@ fn get_url_of_diff_package(date: chrono::DateTime<Utc>) -> String {
 }
 
 async fn load_url(url: String, output: String) -> Promise<()> {
-    let response = reqwest::get(url).await?;
+    let response = reqwest::get(url.clone()).await?;
 
     if response.status().as_u16() != 200 {
-        return Err("Data not found".into());
+        return Err(format!("Data not found: {}", url).into());
     }
 
     let stream = response
@@ -119,7 +119,14 @@ pub async fn load_last_diff() -> Promise<()> {
     }
     println!("Start to load the last diff data set.");
 
-    load_url(url, String::from("data/MLS-diff-cell-export.csv")).await?;
+    match load_url(url, String::from("data/MLS-diff-cell-export.csv")).await {
+        Ok(_) => {}
+        Err(e) => {
+            // better error handling.
+            println!("Failed to load the diff data set. {:?}", e);
+            return Ok(());
+        }
+    };
     println!("Load the full raw data set.");
     load_data(output_path)?;
     println!("Upload the data set to the database.");
@@ -163,13 +170,17 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn update_loop(halt: &Cell<bool>) -> Promise<()> {
+pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
     println!("Init update loop.");
 
-    while !halt.get() {
+    loop {
+        if *halt.lock().await {
+            break;
+        }
+
         load_last_full().await?;
         load_last_diff().await?;
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
     }
 
     Ok(())
