@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::env;
 use std::io::Error;
 
@@ -10,6 +11,7 @@ use chrono::Timelike;
 use chrono::Utc;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
+use tokio::task::yield_now;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 
 use super::db::establish_connection;
@@ -91,15 +93,17 @@ pub async fn load_last_full() -> Promise<()> {
     let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Full)?);
 
     if check_last_update(DateTime::from(last_update), LastUpdatesType::Full) {
-        println!("{:?} Data is up to date.", LastUpdatesType::Full);
         return Ok(());
     }
+    println!("Start to load the last full data set.");
 
     load_url(url, output_path.clone()).await?;
+    println!("Load the full raw data set.");
     load_data(output_path)?;
+    println!("Upload the data set to the database.");
 
     set_last_update(LastUpdatesType::Full, today.naive_utc())?;
-
+    println!("Successfully update the full data set.");
     Ok(())
 }
 
@@ -111,14 +115,17 @@ pub async fn load_last_diff() -> Promise<()> {
     let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Diff)?);
 
     if check_last_update(DateTime::from(last_update), LastUpdatesType::Diff) {
-        println!("{:?} Data is up to date.", LastUpdatesType::Diff);
         return Ok(());
     }
+    println!("Start to load the last diff data set.");
 
     load_url(url, String::from("data/MLS-diff-cell-export.csv")).await?;
+    println!("Load the full raw data set.");
     load_data(output_path)?;
+    println!("Upload the data set to the database.");
 
     set_last_update(LastUpdatesType::Diff, today.naive_utc())?;
+    println!("Successfully update the diff data set.");
 
     Ok(())
 }
@@ -153,5 +160,17 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
         Ok(writes) => println!("Success: {:?} writes.", writes),
         Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
     }
+    Ok(())
+}
+
+pub async fn update_loop(halt: &Cell<bool>) -> Promise<()> {
+    println!("Init update loop.");
+
+    while !halt.get() {
+        load_last_full().await?;
+        load_last_diff().await?;
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    }
+
     Ok(())
 }

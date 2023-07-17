@@ -2,26 +2,25 @@ pub mod models;
 pub mod schema;
 pub mod utils;
 
-use utils::{
-    data::{load_last_diff, load_last_full},
-    utils::{FutureError, Promise},
-};
+use std::cell::Cell;
 
-use std::{error::Error, process};
+use tokio::signal::ctrl_c;
+use utils::data::update_loop;
 
-async fn run() -> Promise<()> {
-    // let input_path = String::from(get_first_arg()?.to_str().unwrap());
-    // load_data(input_path)
-    load_last_diff().await
+async fn process_handling(halt: &Cell<bool>) {
+    while !halt.get() {
+        tokio::select! {
+            _ = ctrl_c() => {
+                println!("Ctrl-C received. Shutting down...");
+                halt.set(true);
+            }
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
-    match run().await {
-        Ok(_) => (),
-        a => match a {
-            Err(e) => println!("Error: {:?}", e),
-            _ => (),
-        },
-    }
+    let halt = Cell::new(false);
+
+    tokio::join!(update_loop(&halt), process_handling(&halt));
 }

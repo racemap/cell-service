@@ -6,6 +6,7 @@ use crate::schema::last_updates;
 use crate::schema::last_updates::dsl::*;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use diesel::result::Error::NotFound;
 use diesel::{Connection, MysqlConnection, RunQueryDsl};
 use dotenvy::dotenv;
 
@@ -39,12 +40,17 @@ pub fn set_last_update(
     Ok(())
 }
 
-pub fn get_last_update(target_type: LastUpdatesType) -> Result<NaiveDateTime, Error> {
+pub fn get_last_update(
+    target_type: LastUpdatesType,
+) -> Result<NaiveDateTime, diesel::result::Error> {
     let connection = &mut establish_connection();
-    let last_update: LastUpdates = last_updates
+    let last_update: Result<LastUpdates, diesel::result::Error> = last_updates
         .filter(last_updates::update_type.eq(target_type))
-        .first(connection)
-        .unwrap();
+        .first(connection);
 
-    Ok(last_update.value)
+    match last_update {
+        Ok(last_update) => Ok(last_update.value),
+        Err(NotFound) => Ok(NaiveDateTime::from_timestamp_micros(0).unwrap()),
+        Err(e) => Err(e),
+    }
 }
