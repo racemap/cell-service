@@ -180,7 +180,7 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
 
         load_last_full().await?;
         load_last_diff().await?;
-        tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
     }
 
     Ok(())
