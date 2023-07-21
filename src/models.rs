@@ -11,7 +11,7 @@ use serde_with::BoolFromInt;
 use serde_with::TimestampSeconds;
 use std::io::Write;
 
-#[derive(Debug, serde::Deserialize, FromSqlRow, AsExpression)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, FromSqlRow, AsExpression)]
 #[sql_type = "CellsRadioEnum"]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Radio {
@@ -23,9 +23,9 @@ pub enum Radio {
 impl ToSql<CellsRadioEnum, Mysql> for Radio {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
         match *self {
-            Radio::Umts => out.write_all(b"UMTS")?,
-            Radio::Gsm => out.write_all(b"GSM")?,
-            Radio::Lte => out.write_all(b"LTE")?,
+            Radio::Umts => out.write_all(b"umts")?,
+            Radio::Gsm => out.write_all(b"gsm")?,
+            Radio::Lte => out.write_all(b"lte")?,
         }
         Ok(IsNull::No)
     }
@@ -34,9 +34,9 @@ impl ToSql<CellsRadioEnum, Mysql> for Radio {
 impl FromSql<CellsRadioEnum, Mysql> for Radio {
     fn from_sql(bytes: MysqlValue<'_>) -> deserialize::Result<Self> {
         match bytes.as_bytes() {
-            b"UMTS" => Ok(Radio::Umts),
-            b"GSM" => Ok(Radio::Gsm),
-            b"LTE" => Ok(Radio::Lte),
+            b"umts" => Ok(Radio::Umts),
+            b"gsm" => Ok(Radio::Gsm),
+            b"lte" => Ok(Radio::Lte),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -46,7 +46,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::cells)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cell {
     radio: Radio,
@@ -62,9 +62,9 @@ pub struct Cell {
     samples: u32,
     #[serde_as(as = "BoolFromInt")]
     changeable: bool,
-    #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
+    #[serde_as(as = "TimestampSeconds<f64, Flexible>")]
     created: NaiveDateTime,
-    #[serde_as(as = "TimestampSeconds<u32, Flexible>")]
+    #[serde_as(as = "TimestampSeconds<f64, Flexible>")]
     updated: NaiveDateTime,
     average_signal: Option<i16>,
 }
