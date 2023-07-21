@@ -1,3 +1,4 @@
+use tracing::info;
 use warp::Filter;
 
 use tokio::sync::oneshot::Receiver;
@@ -5,7 +6,7 @@ use tokio::sync::oneshot::Receiver;
 use super::utils::Promise;
 
 pub async fn start_server(shutdown_receiver: Receiver<()>) -> Promise<()> {
-    println!("Start server.");
+    info!("Start server.");
 
     let routes = warp::path!("health").map(|| "OK");
     let (_, server) =
@@ -14,7 +15,7 @@ pub async fn start_server(shutdown_receiver: Receiver<()>) -> Promise<()> {
         });
 
     server.await;
-    println!("Server stopped.");
+    info!("Server stopped.");
 
     Ok(())
 }

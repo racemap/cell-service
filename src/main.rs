@@ -4,13 +4,24 @@ pub mod utils;
 
 use std::sync::Arc;
 
-use tokio::signal::ctrl_c;
-use tokio::sync::oneshot;
-use tokio::sync::oneshot::Sender;
-use tokio::sync::Mutex;
-use utils::data::update_loop;
-use utils::server::start_server;
-use utils::utils::{flatten, FutureError};
+use dotenvy::dotenv;
+use tokio::{
+    signal::ctrl_c,
+    sync::{
+        oneshot::{self, Sender},
+        Mutex,
+    },
+};
+use tracing::info;
+use tracing_subscriber::{
+    layer::SubscriberExt,
+    {self, EnvFilter},
+};
+use utils::{
+    data::update_loop,
+    server::start_server,
+    utils::{flatten, FutureError},
+};
 
 async fn process_handling(
     halt: &Arc<Mutex<bool>>,
@@ -24,8 +35,7 @@ async fn process_handling(
 
         tokio::select! {
             _ = ctrl_c() => {
-                println!();
-                println!("Ctrl-C received. Shutting down...");
+                info!("Ctrl-C received. Shutting down...");
                 let mut lock = halt.lock().await;
                 *lock = true;
             }
@@ -35,6 +45,14 @@ async fn process_handling(
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
+    let subscriber = tracing_subscriber::registry()
+        .with(tracing_logfmt::layer())
+        .with(EnvFilter::from_default_env());
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Global logger has already been set!");
+
     lazy_static::lazy_static! {
         static ref HALT: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
     }
@@ -47,7 +65,7 @@ async fn main() {
     match tokio::try_join!(flatten(update), flatten(process), flatten(server)) {
         Ok(_) => {}
         Err(err) => {
-            println!("Failed with {}.", err);
+            info!("Failed with {}.", err);
         }
     }
 }

@@ -13,6 +13,7 @@ use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
+use tracing::info;
 
 use super::db::establish_connection;
 use super::db::get_last_update;
@@ -95,15 +96,15 @@ pub async fn load_last_full() -> Promise<()> {
     if check_last_update(DateTime::from(last_update), LastUpdatesType::Full) {
         return Ok(());
     }
-    println!("Start to load the last full data set.");
+    info!("Start to load the last full data set.");
 
     load_url(url, output_path.clone()).await?;
-    println!("Load the full raw data set.");
+    info!("Load the full raw data set.");
     load_data(output_path)?;
-    println!("Upload the data set to the database.");
+    info!("Upload the data set to the database.");
 
     set_last_update(LastUpdatesType::Full, today.naive_utc())?;
-    println!("Successfully update the full data set.");
+    info!("Successfully update the full data set.");
     Ok(())
 }
 
@@ -117,22 +118,22 @@ pub async fn load_last_diff() -> Promise<()> {
     if check_last_update(DateTime::from(last_update), LastUpdatesType::Diff) {
         return Ok(());
     }
-    println!("Start to load the last diff data set.");
+    info!("Start to load the last diff data set.");
 
     match load_url(url, String::from("data/MLS-diff-cell-export.csv")).await {
         Ok(_) => {}
         Err(e) => {
             // better error handling.
-            println!("Failed to load the diff data set. {:?}", e);
+            info!("Failed to load the diff data set. {:?}", e);
             return Ok(());
         }
     };
-    println!("Load the full raw data set.");
+    info!("Load the full raw data set.");
     load_data(output_path)?;
-    println!("Upload the data set to the database.");
+    info!("Upload the data set to the database.");
 
     set_last_update(LastUpdatesType::Diff, today.naive_utc())?;
-    println!("Successfully update the diff data set.");
+    info!("Successfully update the diff data set.");
 
     Ok(())
 }
@@ -164,14 +165,14 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
     updated = FROM_UNIXTIME(@updated);", full_path)).execute(connection);
 
     match res {
-        Ok(writes) => println!("Success: {:?} writes.", writes),
+        Ok(writes) => info!("Success: {:?} writes.", writes),
         Err(e) => return Err(Error::new(std::io::ErrorKind::Other, e.to_string())),
     }
     Ok(())
 }
 
 pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
-    println!("Init update loop.");
+    info!("Init update loop.");
 
     loop {
         if *halt.lock().await {
