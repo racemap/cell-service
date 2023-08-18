@@ -65,9 +65,9 @@ pub struct Cell {
     samples: u32,
     #[serde_as(as = "BoolFromInt")]
     changeable: bool,
-    #[serde_as(as = "TimestampSeconds<f64, Flexible>")]
+    #[serde_as(as = "chrono::DateTime<chrono::Utc>")]
     created: NaiveDateTime,
-    #[serde_as(as = "TimestampSeconds<f64, Flexible>")]
+    #[serde_as(as = "chrono::DateTime<chrono::Utc>")]
     updated: NaiveDateTime,
     average_signal: Option<i16>,
 }

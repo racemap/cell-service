@@ -15,21 +15,32 @@ struct GetCellQuery {
     net: u16,
     area: u32,
     cell: u64,
+    radio: Option<Radio>,
 }
 
 async fn get_cell(query: GetCellQuery) -> Result<impl warp::Reply, warp::Rejection> {
     use crate::schema::cells::dsl::*;
 
     let connection = &mut establish_connection();
-    let result: Cell = cells
+    let mut db_query = cells.into_boxed();
+    let search_radio = query.radio;
+
+    db_query = db_query
         .filter(mcc.eq(&query.mcc))
         .filter(net.eq(&query.net))
         .filter(area.eq(&query.area))
-        .filter(cell.eq(&query.cell))
-        .first(connection)
-        .expect("Error loading cell");
+        .filter(cell.eq(&query.cell));
 
-    Ok(warp::reply::json(&result))
+    if search_radio.is_some() {
+        db_query = db_query.filter(radio.eq(search_radio.unwrap()));
+    }
+
+    let result: Result<Cell, _> = db_query.first(connection);
+
+    match result {
+        Ok(entry) => Ok(warp::reply::json(&entry)),
+        Err(_) => Ok(warp::reply::json(&serde_json::Value::Null)),
+    }
 }
 
 pub async fn start_server(shutdown_receiver: Receiver<()>) -> Promise<()> {
