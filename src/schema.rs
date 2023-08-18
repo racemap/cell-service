@@ -19,8 +19,8 @@ diesel::table! {
         radio -> CellsRadioEnum,
         mcc -> Unsigned<Smallint>,
         net -> Unsigned<Smallint>,
-        area -> Unsigned<Smallint>,
-        cell -> Unsigned<Integer>,
+        area -> Unsigned<Integer>,
+        cell -> Unsigned<Bigint>,
         unit -> Nullable<Unsigned<Smallint>>,
         lon -> Float,
         lat -> Float,
@@ -37,11 +37,14 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::LastUpdatesUpdateTypeEnum;
 
-    last_updates (update_type) {
+    last_updates (value) {
+        value -> Datetime,
         #[max_length = 4]
         update_type -> LastUpdatesUpdateTypeEnum,
-        value -> Datetime,
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(cells, last_updates,);
+diesel::allow_tables_to_appear_in_same_query!(
+    cells,
+    last_updates,
+);

@@ -10,10 +10,11 @@ csv = "1.2.2"
 serde = { version = "1.0.171", features = ["derive"] }
 chrono = { version = "0.4.26", features = ["serde"] }
 serde_with = { version = "3.0.0", features = ["chrono"] }
+serde_json = "1"
 diesel = { version = "2.1.0", features = ["mysql", "chrono"] }
 diesel-derive-enum = { version = "2.1.0", features = ["mysql"] }
 dotenvy = "0.15"
-reqwest = { version = "0.11.18", features = ["stream"] }
+reqwest = { version = "0.11.18", features = ["stream", "json"] }
 tokio = { version = "1.29.1", features = ["full"] }
 libflate = "2.0.0"
 futures = { version = "0.3.28" }

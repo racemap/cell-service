@@ -1,10 +1,10 @@
 -- Your SQL goes here
 CREATE TABLE cells (
-  radio ENUM('gsm','umts','lte') NOT NULL,
+  radio ENUM('gsm','umts','lte','nr') NOT NULL,
   mcc SMALLINT UNSIGNED NOT NULL,
   net SMALLINT UNSIGNED NOT NULL,
-  area SMALLINT UNSIGNED NOT NULL,
-  cell INT UNSIGNED NOT NULL,
+  area INT UNSIGNED NOT NULL,
+  cell BIGINT UNSIGNED NOT NULL,
   unit SMALLINT UNSIGNED,
   lon FLOAT NOT NULL,
   lat FLOAT NOT NULL,

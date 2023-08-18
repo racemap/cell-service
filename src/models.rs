@@ -18,6 +18,7 @@ pub enum Radio {
     Gsm,
     Umts,
     Lte,
+    Nr,
 }
 
 impl ToSql<CellsRadioEnum, Mysql> for Radio {
@@ -26,6 +27,7 @@ impl ToSql<CellsRadioEnum, Mysql> for Radio {
             Radio::Umts => out.write_all(b"umts")?,
             Radio::Gsm => out.write_all(b"gsm")?,
             Radio::Lte => out.write_all(b"lte")?,
+            Radio::Nr => out.write_all(b"nr")?,
         }
         Ok(IsNull::No)
     }
@@ -37,6 +39,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
             b"umts" => Ok(Radio::Umts),
             b"gsm" => Ok(Radio::Gsm),
             b"lte" => Ok(Radio::Lte),
+            b"nr" => Ok(Radio::Nr),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -52,8 +55,8 @@ pub struct Cell {
     radio: Radio,
     mcc: u16,
     net: u16,
-    area: u16,
-    cell: u32,
+    area: u32,
+    cell: u64,
     unit: Option<u16>,
     lon: f32,
     lat: f32,
@@ -100,6 +103,6 @@ impl FromSql<LastUpdatesUpdateTypeEnum, Mysql> for LastUpdatesType {
 #[diesel(table_name = crate::schema::last_updates)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct LastUpdates {
-    pub update_type: LastUpdatesType,
     pub value: NaiveDateTime,
+    pub update_type: LastUpdatesType,
 }

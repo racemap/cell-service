@@ -37,13 +37,10 @@ pub fn set_last_update(
     Ok(())
 }
 
-pub fn get_last_update(
-    target_type: LastUpdatesType,
-) -> Result<NaiveDateTime, diesel::result::Error> {
+pub fn get_last_update() -> Result<NaiveDateTime, diesel::result::Error> {
     let connection = &mut establish_connection();
-    let last_update: Result<LastUpdates, diesel::result::Error> = last_updates
-        .filter(last_updates::update_type.eq(target_type))
-        .first(connection);
+    let last_update: Result<LastUpdates, diesel::result::Error> =
+        last_updates.order(value.desc()).first(connection);
 
     match last_update {
         Ok(last_update) => Ok(last_update.value),

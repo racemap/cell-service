@@ -7,45 +7,61 @@ use async_compression::tokio::bufread::GzipDecoder;
 use chrono::DateTime;
 use chrono::Datelike;
 use chrono::TimeZone;
-use chrono::Timelike;
 use chrono::Utc;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
-use tracing::info;
+use tracing::{debug, info};
+
+#[derive(serde::Deserialize)]
+struct ErrorResponse {
+    status: String,
+    message: String,
+}
 
 use super::db::establish_connection;
 use super::db::get_last_update;
 use super::db::set_last_update;
 use super::utils::Promise;
 
-fn get_url_of_full_package(date: chrono::DateTime<Utc>) -> String {
-    let year = date.year();
-    let month = date.month();
-    let day = date.day();
+fn get_url_of_full_package() -> String {
+    let basic_url = env::var("DOWNLOAD_SOURCE_URL")
+        .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
+    let token = env::var("DOWNLOAD_SOURCE_TOKEN").unwrap();
     format!(
-        "https://d2koia3g127518.cloudfront.net/export/MLS-full-cell-export-{:04}-{:02}-{:02}T000000.csv.gz",
-        year, month, day
+        "{}?token={}&type=full&file=cell_towers.csv.gz",
+        basic_url, token
     )
 }
 
 fn get_url_of_diff_package(date: chrono::DateTime<Utc>) -> String {
+    let basic_url = env::var("DOWNLOAD_SOURCE_URL")
+        .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
+    let token = env::var("DOWNLOAD_SOURCE_TOKEN").unwrap();
     let year = date.year();
     let month = date.month();
     let day = date.day();
-    let hour = date.hour();
     format!(
-        "https://d2koia3g127518.cloudfront.net/export/MLS-diff-cell-export-{:04}-{:02}-{:02}T{:02}0000.csv.gz",
-        year, month, day, hour
+        "{}?token={}&type=diff&file=OCID-diff-cell-export-{:04}-{:02}-{:02}-T000000.csv.gz",
+        basic_url, token, year, month, day
     )
 }
 
 async fn load_url(url: String, output: String) -> Promise<()> {
     let response = reqwest::get(url.clone()).await?;
+    let status_code = response.status();
+    let content_type = response.headers().get("Content-Type").unwrap().to_str()?;
 
-    if response.status().as_u16() != 200 {
-        return Err(format!("Data not found: {}", url).into());
+    match content_type {
+        "application/json" => {
+            let error_message = response.json::<ErrorResponse>().await?;
+            return Err(error_message.message.into());
+        }
+        "application/gzip" => {}
+        _ => {
+            return Err(format!("Request failed status: {}", status_code).into());
+        }
     }
 
     let stream = response
@@ -66,43 +82,52 @@ fn convert_error(err: reqwest::Error) -> std::io::Error {
     todo!()
 }
 
-fn check_last_update(last_update: DateTime<Utc>, last_update_type: LastUpdatesType) -> bool {
+fn get_update_type(last_update: DateTime<Utc>) -> Option<LastUpdatesType> {
     let today = chrono::offset::Utc::now();
+    if last_update.timestamp() == 0 {
+        info!("No last update found. Make a full update.");
+        return Some(LastUpdatesType::Full);
+    };
+
     if last_update.year() != today.year() {
-        return false;
+        info!("Last update was last year. Make a full update.");
+        return Some(LastUpdatesType::Full);
     };
     if last_update.month() != today.month() {
-        return false;
+        info!("Last update was last month. Make a full update.");
+        return Some(LastUpdatesType::Full);
     };
-    if last_update.day() != today.day() {
-        return false;
+    if last_update.day() == today.day() {
+        debug!("Last update was today. Skip update.");
+        return None;
     };
-    if last_update_type == LastUpdatesType::Full {
-        return true;
+    let diff = today.time() - last_update.time();
+    if (diff.num_days() == 1) && (diff.num_hours() < 24) {
+        info!("Last update was yesterday. Make a diff update.");
+        return Some(LastUpdatesType::Diff);
     };
-    if last_update.hour() != today.hour() {
-        return false;
-    };
-    return true;
+
+    info!("Last update was more than one day ago. Make a full update.");
+    Some(LastUpdatesType::Full)
 }
 
 pub async fn load_last_full() -> Promise<()> {
-    let today = chrono::offset::Utc::now();
-    let url = get_url_of_full_package(today);
-    let output_path = String::from("data/MLS-full-cell-export.csv");
-
-    let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Full)?);
-
-    if check_last_update(DateTime::from(last_update), LastUpdatesType::Full) {
-        return Ok(());
-    }
+    let url = get_url_of_full_package();
+    let output_path = String::from("data/full-cell-export.csv");
     info!("Start to load the last full data set.");
 
-    load_url(url, output_path.clone()).await?;
+    match load_url(url, output_path.clone()).await {
+        Ok(_) => {}
+        Err(e) => {
+            info!("Load Data Error: {}", e);
+            return Ok(());
+        }
+    }
     info!("Load the full raw data set.");
     load_data(output_path)?;
     info!("Upload the data set to the database.");
 
+    let today = chrono::offset::Utc::now();
     set_last_update(LastUpdatesType::Full, today.naive_utc())?;
     info!("Successfully update the full data set.");
     Ok(())
@@ -111,24 +136,11 @@ pub async fn load_last_full() -> Promise<()> {
 pub async fn load_last_diff() -> Promise<()> {
     let today = chrono::offset::Utc::now();
     let url = get_url_of_diff_package(today);
-    let output_path = String::from("data/MLS-diff-cell-export.csv");
-
-    let last_update = Utc.from_utc_datetime(&get_last_update(LastUpdatesType::Diff)?);
-
-    if check_last_update(DateTime::from(last_update), LastUpdatesType::Diff) {
-        return Ok(());
-    }
+    let output_path = String::from("data/diff-cell-export.csv");
     info!("Start to load the last diff data set.");
 
-    match load_url(url, String::from("data/MLS-diff-cell-export.csv")).await {
-        Ok(_) => {}
-        Err(e) => {
-            // better error handling.
-            info!("Failed to load the diff data set. {:?}", e);
-            return Ok(());
-        }
-    };
-    info!("Load the full raw data set.");
+    load_url(url, output_path.clone()).await?;
+    info!("Load the last diff raw data set.");
     load_data(output_path)?;
     info!("Upload the data set to the database.");
 
@@ -136,6 +148,16 @@ pub async fn load_last_diff() -> Promise<()> {
     info!("Successfully update the diff data set.");
 
     Ok(())
+}
+
+pub async fn update_local_database() -> Promise<()> {
+    let last_update = Utc.from_utc_datetime(&get_last_update().unwrap());
+
+    match get_update_type(DateTime::from(last_update)) {
+        None => Ok(()),
+        Some(LastUpdatesType::Full) => load_last_full().await,
+        Some(LastUpdatesType::Diff) => load_last_diff().await,
+    }
 }
 
 pub fn load_data(input_path: String) -> Result<(), Error> {
@@ -151,15 +173,16 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
     };
     let connection = &mut establish_connection();
 
+    info!("Load data from: {:?}", full_path);
     let res = diesel::sql_query(format!("
     LOAD DATA INFILE {:?}
     REPLACE INTO TABLE cells
     FIELDS TERMINATED BY ','
-    LINES TERMINATED BY '\r\n'
+    LINES TERMINATED BY '\n'
     IGNORE 1 LINES
     (radio, mcc, net, area, cell, @unit, lon, lat, cell_range, samples, changeable, @created, @updated, @average_signal)
     SET
-    unit = NULLIF(@unit, ''),
+    unit = NULLIF(@unit, '-1'),
     average_signal = NULLIF(@average_signal, ''),
     created = FROM_UNIXTIME(@created),
     updated = FROM_UNIXTIME(@updated);", full_path)).execute(connection);
@@ -174,14 +197,20 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
 pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
     info!("Init update loop.");
 
+    let mut count = 0;
     loop {
         if *halt.lock().await {
             break;
         }
 
-        load_last_full().await?;
-        load_last_diff().await?;
-        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+        if (count % 600) == 0 {
+            debug!("Check for updates!");
+            update_local_database().await?;
+            count = 0;
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        count += 1;
     }
 
     Ok(())

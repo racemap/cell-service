@@ -1139,6 +1139,7 @@ dependencies = [
  "libflate",
  "reqwest",
  "serde",
+ "serde_json",
  "serde_with",
  "tokio",
  "tokio-util",

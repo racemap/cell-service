@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use warp::{http::Error, Filter};
+use warp::Filter;
 
 use tokio::sync::oneshot::Receiver;
 
@@ -13,8 +13,8 @@ use super::utils::Promise;
 struct GetCellQuery {
     mcc: u16,
     net: u16,
-    area: u16,
-    cell: u32,
+    area: u32,
+    cell: u64,
 }
 
 async fn get_cell(query: GetCellQuery) -> Result<impl warp::Reply, warp::Rejection> {
