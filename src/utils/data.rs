@@ -27,7 +27,7 @@ use super::utils::Promise;
 
 lazy_static! {
     static ref OUTPUT_FOLDER: String =
-        env::var("TEMP_FOLDER").unwrap_or(String::from("/tmp/racemap-cells/data"));
+        env::var("TEMP_FOLDER").unwrap_or(String::from("/tmp/racemap-cell-service/data"));
 }
 
 fn get_url_of_full_package() -> String {

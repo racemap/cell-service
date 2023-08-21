@@ -1125,7 +1125,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "racemap-cells"
+name = "racemap-cell-service"
 version = "0.1.0"
 dependencies = [
  "async-compression",
