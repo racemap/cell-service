@@ -10,13 +10,13 @@ use chrono::TimeZone;
 use chrono::Utc;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
+use lazy_static::lazy_static;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 use tracing::{debug, info};
 
 #[derive(serde::Deserialize)]
 struct ErrorResponse {
-    status: String,
     message: String,
 }
 
@@ -24,6 +24,11 @@ use super::db::establish_connection;
 use super::db::get_last_update;
 use super::db::set_last_update;
 use super::utils::Promise;
+
+lazy_static! {
+    static ref OUTPUT_FOLDER: String =
+        env::var("TEMP_FOLDER").unwrap_or(String::from("/tmp/racemap-cells/data"));
+}
 
 fn get_url_of_full_package() -> String {
     let basic_url = env::var("DOWNLOAD_SOURCE_URL")
@@ -83,6 +88,7 @@ fn convert_error(err: reqwest::Error) -> std::io::Error {
 }
 
 fn get_update_type(last_update: DateTime<Utc>) -> Option<LastUpdatesType> {
+    debug!("Last update was: {}", last_update);
     let today = chrono::offset::Utc::now();
     if last_update.timestamp() == 0 {
         info!("No last update found. Make a full update.");
@@ -101,8 +107,10 @@ fn get_update_type(last_update: DateTime<Utc>) -> Option<LastUpdatesType> {
         debug!("Last update was today. Skip update.");
         return None;
     };
-    let diff = today.time() - last_update.time();
-    if (diff.num_days() == 1) && (diff.num_hours() < 24) {
+    let diff = today - last_update;
+    debug!("Last update was {} hours ago.", diff.num_hours());
+    debug!("Last update was {} days ago.", diff.num_days());
+    if (diff.num_days() <= 1) && (diff.num_hours() < 24) {
         info!("Last update was yesterday. Make a diff update.");
         return Some(LastUpdatesType::Diff);
     };
@@ -113,7 +121,7 @@ fn get_update_type(last_update: DateTime<Utc>) -> Option<LastUpdatesType> {
 
 pub async fn load_last_full() -> Promise<()> {
     let url = get_url_of_full_package();
-    let output_path = String::from("data/full-cell-export.csv");
+    let output_path = String::from(format!("{}/full-cell-export.csv", *OUTPUT_FOLDER));
     info!("Start to load the last full data set.");
 
     match load_url(url, output_path.clone()).await {
@@ -136,7 +144,7 @@ pub async fn load_last_full() -> Promise<()> {
 pub async fn load_last_diff() -> Promise<()> {
     let today = chrono::offset::Utc::now();
     let url = get_url_of_diff_package(today);
-    let output_path = String::from("data/diff-cell-export.csv");
+    let output_path = String::from(format!("{}/diff-cell-export.csv", *OUTPUT_FOLDER));
     info!("Start to load the last diff data set.");
 
     load_url(url, output_path.clone()).await?;
@@ -194,8 +202,18 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
     Ok(())
 }
 
+// create output folder if not exists
+pub async fn init() -> Promise<()> {
+    let path = std::path::Path::new(&*OUTPUT_FOLDER);
+    if !path.exists() {
+        tokio::fs::create_dir_all(path).await?;
+    }
+    Ok(())
+}
+
 pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
     info!("Init update loop.");
+    init().await?;
 
     let mut count = 0;
     loop {

@@ -6,7 +6,10 @@ use std::sync::Arc;
 
 use dotenvy::dotenv;
 use tokio::{
-    signal::ctrl_c,
+    signal::{
+        ctrl_c,
+        unix::{signal, SignalKind},
+    },
     sync::{
         oneshot::{self, Sender},
         Mutex,
@@ -32,10 +35,22 @@ async fn process_handling(
             shutdown_sender.send(()).unwrap();
             return Ok(());
         }
+        let mut sigterm = signal(SignalKind::terminate()).unwrap();
+        let mut sigint = signal(SignalKind::interrupt()).unwrap();
 
         tokio::select! {
             _ = ctrl_c() => {
                 info!("Ctrl-C received. Shutting down...");
+                let mut lock = halt.lock().await;
+                *lock = true;
+            }
+            _ = sigterm.recv() => {
+                info!("Hangup received. Shutting down...");
+                let mut lock = halt.lock().await;
+                *lock = true;
+            }
+            _ = sigint.recv() => {
+                info!("Interrupt received. Shutting down...");
                 let mut lock = halt.lock().await;
                 *lock = true;
             }
