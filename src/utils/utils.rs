@@ -19,3 +19,46 @@ pub async fn flatten<T>(handle: JoinHandle<Result<T, FutureError>>) -> Result<T,
         Err(_) => Err(String::from("handling failed")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_flatten_returns_ok_on_success() {
+        let handle = tokio::spawn(async { Ok::<_, FutureError>(42) });
+
+        let result = flatten(handle).await;
+
+        assert_eq!(result, Ok(42));
+    }
+
+    #[tokio::test]
+    async fn test_flatten_returns_err_string_on_inner_error() {
+        let handle = tokio::spawn(async { Err::<i32, FutureError>("something went wrong".into()) });
+
+        let result = flatten(handle).await;
+
+        assert_eq!(result, Err(String::from("something went wrong")));
+    }
+
+    #[tokio::test]
+    async fn test_flatten_returns_handling_failed_on_join_error() {
+        let handle: JoinHandle<Result<i32, FutureError>> = tokio::spawn(async {
+            panic!("task panicked");
+        });
+
+        let result = flatten(handle).await;
+
+        assert_eq!(result, Err(String::from("handling failed")));
+    }
+
+    #[tokio::test]
+    async fn test_flatten_works_with_string_result() {
+        let handle = tokio::spawn(async { Ok::<_, FutureError>(String::from("hello")) });
+
+        let result = flatten(handle).await;
+
+        assert_eq!(result, Ok(String::from("hello")));
+    }
+}

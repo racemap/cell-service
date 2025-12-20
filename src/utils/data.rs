@@ -5,11 +5,11 @@ use std::sync::Arc;
 use crate::models::LastUpdatesType;
 use async_compression::tokio::bufread::GzipDecoder;
 use chrono::DateTime;
-use chrono::Datelike;
 use chrono::TimeZone;
 use chrono::Utc;
 
 use super::update_type::get_update_type;
+use super::url_builder::{get_url_of_diff_package, get_url_of_full_package};
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use lazy_static::lazy_static;
@@ -30,29 +30,6 @@ use super::utils::Promise;
 lazy_static! {
     static ref OUTPUT_FOLDER: String =
         env::var("TEMP_FOLDER").unwrap_or(String::from("/tmp/racemap-cell-service/data"));
-}
-
-fn get_url_of_full_package() -> String {
-    let basic_url = env::var("DOWNLOAD_SOURCE_URL")
-        .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
-    format!(
-        "{}?token={}&type=full&file=cell_towers.csv.gz",
-        basic_url, token
-    )
-}
-
-fn get_url_of_diff_package(date: chrono::DateTime<Utc>) -> String {
-    let basic_url = env::var("DOWNLOAD_SOURCE_URL")
-        .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
-    let year = date.year();
-    let month = date.month();
-    let day = date.day();
-    format!(
-        "{}?token={}&type=diff&file=OCID-diff-cell-export-{:04}-{:02}-{:02}-T000000.csv.gz",
-        basic_url, token, year, month, day
-    )
 }
 
 async fn load_url(url: String, output: String) -> Promise<()> {
