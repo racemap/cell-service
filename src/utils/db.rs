@@ -4,7 +4,7 @@ use std::io::Error;
 use crate::models::{LastUpdates, LastUpdatesType};
 use crate::schema::last_updates;
 use crate::schema::last_updates::dsl::*;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
 use diesel::{Connection, MysqlConnection, RunQueryDsl};
@@ -44,7 +44,9 @@ pub fn get_last_update() -> Result<NaiveDateTime, diesel::result::Error> {
 
     match last_update {
         Ok(last_update) => Ok(last_update.value),
-        Err(NotFound) => Ok(NaiveDateTime::from_timestamp_micros(0).unwrap()),
+        Err(NotFound) => Ok(DateTime::<Utc>::from_timestamp_micros(0)
+            .unwrap()
+            .naive_utc()),
         Err(e) => Err(e),
     }
 }

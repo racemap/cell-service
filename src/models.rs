@@ -10,7 +10,7 @@ use serde_with::BoolFromInt;
 use std::io::Write;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, FromSqlRow, AsExpression)]
-#[sql_type = "CellsRadioEnum"]
+#[diesel(sql_type = CellsRadioEnum)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Radio {
     Gsm,
@@ -74,7 +74,7 @@ pub struct Cell {
 }
 
 #[derive(Debug, FromSqlRow, AsExpression, PartialEq, Eq)]
-#[sql_type = "LastUpdatesUpdateTypeEnum"]
+#[diesel(sql_type = LastUpdatesUpdateTypeEnum)]
 pub enum LastUpdatesType {
     Full,
     Diff,
