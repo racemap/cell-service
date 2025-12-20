@@ -33,7 +33,7 @@ lazy_static! {
 fn get_url_of_full_package() -> String {
     let basic_url = env::var("DOWNLOAD_SOURCE_URL")
         .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").unwrap();
+    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
     format!(
         "{}?token={}&type=full&file=cell_towers.csv.gz",
         basic_url, token
@@ -43,7 +43,7 @@ fn get_url_of_full_package() -> String {
 fn get_url_of_diff_package(date: chrono::DateTime<Utc>) -> String {
     let basic_url = env::var("DOWNLOAD_SOURCE_URL")
         .unwrap_or(String::from("https://opencellid.org/ocid/downloads"));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").unwrap();
+    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
     let year = date.year();
     let month = date.month();
     let day = date.day();

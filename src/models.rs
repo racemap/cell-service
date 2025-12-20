@@ -6,9 +6,7 @@ use diesel::prelude::*;
 use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::*;
 
-use serde_with::formats::Flexible;
 use serde_with::BoolFromInt;
-use serde_with::TimestampSeconds;
 use std::io::Write;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, FromSqlRow, AsExpression)]
@@ -17,6 +15,7 @@ use std::io::Write;
 pub enum Radio {
     Gsm,
     Umts,
+    Cdma,
     Lte,
     Nr,
 }
@@ -28,6 +27,7 @@ impl ToSql<CellsRadioEnum, Mysql> for Radio {
             Radio::Gsm => out.write_all(b"gsm")?,
             Radio::Lte => out.write_all(b"lte")?,
             Radio::Nr => out.write_all(b"nr")?,
+            Radio::Cdma => out.write_all(b"cdma")?,
         }
         Ok(IsNull::No)
     }
@@ -40,6 +40,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
             b"gsm" => Ok(Radio::Gsm),
             b"lte" => Ok(Radio::Lte),
             b"nr" => Ok(Radio::Nr),
+            b"cdma" => Ok(Radio::Cdma),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
