@@ -8,6 +8,8 @@ use chrono::DateTime;
 use chrono::Datelike;
 use chrono::TimeZone;
 use chrono::Utc;
+
+use super::update_type::get_update_type;
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use lazy_static::lazy_static;
@@ -87,38 +89,6 @@ fn convert_error(_err: reqwest::Error) -> std::io::Error {
     todo!()
 }
 
-fn get_update_type(last_update: DateTime<Utc>) -> Option<LastUpdatesType> {
-    debug!("Last update was: {}", last_update);
-    let today = chrono::offset::Utc::now();
-    if last_update.timestamp() == 0 {
-        info!("No last update found. Make a full update.");
-        return Some(LastUpdatesType::Full);
-    };
-
-    if last_update.year() != today.year() {
-        info!("Last update was last year. Make a full update.");
-        return Some(LastUpdatesType::Full);
-    };
-    if last_update.month() != today.month() {
-        info!("Last update was last month. Make a full update.");
-        return Some(LastUpdatesType::Full);
-    };
-    if last_update.day() == today.day() {
-        debug!("Last update was today. Skip update.");
-        return None;
-    };
-    let diff = today - last_update;
-    debug!("Last update was {} hours ago.", diff.num_hours());
-    debug!("Last update was {} days ago.", diff.num_days());
-    if (diff.num_days() <= 1) && (diff.num_hours() < 24) {
-        info!("Last update was yesterday. Make a diff update.");
-        return Some(LastUpdatesType::Diff);
-    };
-
-    info!("Last update was more than one day ago. Make a full update.");
-    Some(LastUpdatesType::Full)
-}
-
 pub async fn load_last_full() -> Promise<()> {
     let url = get_url_of_full_package();
     let output_path = String::from(format!("{}/full-cell-export.csv", *OUTPUT_FOLDER));
@@ -160,8 +130,9 @@ pub async fn load_last_diff() -> Promise<()> {
 
 pub async fn update_local_database() -> Promise<()> {
     let last_update = Utc.from_utc_datetime(&get_last_update().unwrap());
+    let now = chrono::offset::Utc::now();
 
-    match get_update_type(DateTime::from(last_update)) {
+    match get_update_type(DateTime::from(last_update), now) {
         None => Ok(()),
         Some(LastUpdatesType::Full) => load_last_full().await,
         Some(LastUpdatesType::Diff) => load_last_diff().await,
