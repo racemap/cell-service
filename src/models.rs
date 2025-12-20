@@ -302,4 +302,29 @@ mod tests {
             assert_eq!(deserialized.cell_range, original.cell_range);
         }
     }
+
+    mod last_updates_type {
+        use super::*;
+
+        #[test]
+        fn test_full_equals_full() {
+            assert_eq!(LastUpdatesType::Full, LastUpdatesType::Full);
+        }
+
+        #[test]
+        fn test_diff_equals_diff() {
+            assert_eq!(LastUpdatesType::Diff, LastUpdatesType::Diff);
+        }
+
+        #[test]
+        fn test_full_not_equals_diff() {
+            assert_ne!(LastUpdatesType::Full, LastUpdatesType::Diff);
+        }
+
+        #[test]
+        fn test_debug_format() {
+            assert_eq!(format!("{:?}", LastUpdatesType::Full), "Full");
+            assert_eq!(format!("{:?}", LastUpdatesType::Diff), "Diff");
+        }
+    }
 }
