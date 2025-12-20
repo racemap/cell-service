@@ -83,7 +83,7 @@ async fn load_url(url: String, output: String) -> Promise<()> {
     Ok(())
 }
 
-fn convert_error(err: reqwest::Error) -> std::io::Error {
+fn convert_error(_err: reqwest::Error) -> std::io::Error {
     todo!()
 }
 
