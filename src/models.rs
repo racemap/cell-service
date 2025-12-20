@@ -107,3 +107,199 @@ pub struct LastUpdates {
     pub value: NaiveDateTime,
     pub update_type: LastUpdatesType,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod radio_serialization {
+        use super::*;
+
+        #[test]
+        fn test_serialize_gsm() {
+            let json = serde_json::to_string(&Radio::Gsm).unwrap();
+            assert_eq!(json, "\"GSM\"");
+        }
+
+        #[test]
+        fn test_serialize_umts() {
+            let json = serde_json::to_string(&Radio::Umts).unwrap();
+            assert_eq!(json, "\"UMTS\"");
+        }
+
+        #[test]
+        fn test_serialize_cdma() {
+            let json = serde_json::to_string(&Radio::Cdma).unwrap();
+            assert_eq!(json, "\"CDMA\"");
+        }
+
+        #[test]
+        fn test_serialize_lte() {
+            let json = serde_json::to_string(&Radio::Lte).unwrap();
+            assert_eq!(json, "\"LTE\"");
+        }
+
+        #[test]
+        fn test_serialize_nr() {
+            let json = serde_json::to_string(&Radio::Nr).unwrap();
+            assert_eq!(json, "\"NR\"");
+        }
+
+        #[test]
+        fn test_deserialize_gsm() {
+            let radio: Radio = serde_json::from_str("\"GSM\"").unwrap();
+            assert!(matches!(radio, Radio::Gsm));
+        }
+
+        #[test]
+        fn test_deserialize_umts() {
+            let radio: Radio = serde_json::from_str("\"UMTS\"").unwrap();
+            assert!(matches!(radio, Radio::Umts));
+        }
+
+        #[test]
+        fn test_deserialize_cdma() {
+            let radio: Radio = serde_json::from_str("\"CDMA\"").unwrap();
+            assert!(matches!(radio, Radio::Cdma));
+        }
+
+        #[test]
+        fn test_deserialize_lte() {
+            let radio: Radio = serde_json::from_str("\"LTE\"").unwrap();
+            assert!(matches!(radio, Radio::Lte));
+        }
+
+        #[test]
+        fn test_deserialize_nr() {
+            let radio: Radio = serde_json::from_str("\"NR\"").unwrap();
+            assert!(matches!(radio, Radio::Nr));
+        }
+
+        #[test]
+        fn test_deserialize_invalid_returns_error() {
+            let result: Result<Radio, _> = serde_json::from_str("\"INVALID\"");
+            assert!(result.is_err());
+        }
+    }
+
+    mod cell_serialization {
+        use super::*;
+        use chrono::TimeZone;
+
+        fn sample_cell() -> Cell {
+            Cell {
+                radio: Radio::Lte,
+                mcc: 262,
+                net: 1,
+                area: 12345,
+                cell: 67890123,
+                unit: Some(42),
+                lon: 13.405,
+                lat: 52.52,
+                cell_range: 1000,
+                samples: 50,
+                changeable: true,
+                created: chrono::Utc
+                    .with_ymd_and_hms(2024, 1, 15, 10, 30, 0)
+                    .unwrap()
+                    .naive_utc(),
+                updated: chrono::Utc
+                    .with_ymd_and_hms(2025, 12, 20, 14, 0, 0)
+                    .unwrap()
+                    .naive_utc(),
+                average_signal: Some(-85),
+            }
+        }
+
+        #[test]
+        fn test_serialize_uses_camel_case_field_names() {
+            let cell = sample_cell();
+            let json = serde_json::to_string(&cell).unwrap();
+
+            assert!(json.contains("\"cellRange\""));
+            assert!(json.contains("\"averageSignal\""));
+            assert!(!json.contains("\"cell_range\""));
+            assert!(!json.contains("\"average_signal\""));
+        }
+
+        #[test]
+        fn test_serialize_radio_as_screaming_snake_case() {
+            let cell = sample_cell();
+            let json = serde_json::to_string(&cell).unwrap();
+
+            assert!(json.contains("\"radio\":\"LTE\""));
+        }
+
+        #[test]
+        fn test_serialize_optional_fields() {
+            let mut cell = sample_cell();
+            cell.unit = None;
+            cell.average_signal = None;
+
+            let json = serde_json::to_string(&cell).unwrap();
+
+            assert!(json.contains("\"unit\":null"));
+            assert!(json.contains("\"averageSignal\":null"));
+        }
+
+        #[test]
+        fn test_deserialize_with_range_alias() {
+            let json = r#"{
+                "radio": "GSM",
+                "mcc": 262,
+                "net": 1,
+                "area": 100,
+                "cell": 200,
+                "unit": null,
+                "lon": 10.0,
+                "lat": 50.0,
+                "range": 500,
+                "samples": 10,
+                "changeable": 1,
+                "created": "2024-01-01T00:00:00Z",
+                "updated": "2024-01-01T00:00:00Z",
+                "averageSignal": null
+            }"#;
+
+            let cell: Cell = serde_json::from_str(json).unwrap();
+
+            assert_eq!(cell.cell_range, 500);
+        }
+
+        #[test]
+        fn test_deserialize_changeable_from_int() {
+            let json = r#"{
+                "radio": "GSM",
+                "mcc": 262,
+                "net": 1,
+                "area": 100,
+                "cell": 200,
+                "unit": null,
+                "lon": 10.0,
+                "lat": 50.0,
+                "cellRange": 500,
+                "samples": 10,
+                "changeable": 0,
+                "created": "2024-01-01T00:00:00Z",
+                "updated": "2024-01-01T00:00:00Z",
+                "averageSignal": null
+            }"#;
+
+            let cell: Cell = serde_json::from_str(json).unwrap();
+
+            assert!(!cell.changeable);
+        }
+
+        #[test]
+        fn test_roundtrip_serialization() {
+            let original = sample_cell();
+            let json = serde_json::to_string(&original).unwrap();
+            let deserialized: Cell = serde_json::from_str(&json).unwrap();
+
+            assert!(matches!(deserialized.radio, Radio::Lte));
+            assert_eq!(deserialized.mcc, original.mcc);
+            assert_eq!(deserialized.cell, original.cell);
+            assert_eq!(deserialized.cell_range, original.cell_range);
+        }
+    }
+}
