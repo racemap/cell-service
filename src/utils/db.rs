@@ -50,3 +50,14 @@ pub fn get_last_update() -> Result<NaiveDateTime, diesel::result::Error> {
         Err(e) => Err(e),
     }
 }
+
+/// Establishes a test database connection using DATABASE_URL_TEST env var.
+/// Falls back to DATABASE_URL if DATABASE_URL_TEST is not set.
+#[cfg(test)]
+pub fn establish_test_connection() -> MysqlConnection {
+    let database_url = env::var("DATABASE_URL_TEST")
+        .or_else(|_| env::var("DATABASE_URL"))
+        .expect("DATABASE_URL_TEST or DATABASE_URL must be set for tests");
+    MysqlConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to test database {}", database_url))
+}

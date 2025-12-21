@@ -47,30 +47,30 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
 }
 
 #[serde_with::serde_as]
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::cells)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cell {
-    radio: Radio,
-    mcc: u16,
-    net: u16,
-    area: u32,
-    cell: u64,
-    unit: Option<u16>,
-    lon: f32,
-    lat: f32,
+    pub radio: Radio,
+    pub mcc: u16,
+    pub net: u16,
+    pub area: u32,
+    pub cell: u64,
+    pub unit: Option<u16>,
+    pub lon: f32,
+    pub lat: f32,
     #[serde(alias = "range")]
-    cell_range: u32,
-    samples: u32,
+    pub cell_range: u32,
+    pub samples: u32,
     #[serde_as(as = "BoolFromInt")]
-    changeable: bool,
+    pub changeable: bool,
     #[serde_as(as = "chrono::DateTime<chrono::Utc>")]
-    created: NaiveDateTime,
+    pub created: NaiveDateTime,
     #[serde_as(as = "chrono::DateTime<chrono::Utc>")]
-    updated: NaiveDateTime,
-    average_signal: Option<i16>,
+    pub updated: NaiveDateTime,
+    pub average_signal: Option<i16>,
 }
 
 #[derive(Debug, FromSqlRow, AsExpression, PartialEq, Eq)]
