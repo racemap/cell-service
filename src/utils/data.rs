@@ -117,6 +117,16 @@ pub async fn update_local_database() -> Promise<()> {
 }
 
 pub fn load_data(input_path: String) -> Result<(), Error> {
+    let connection = &mut establish_connection();
+    load_data_with_connection(input_path, connection)
+}
+
+/// Load CSV data into the database using the provided connection.
+/// This is the testable version that accepts a connection parameter.
+pub fn load_data_with_connection(
+    input_path: String,
+    connection: &mut diesel::MysqlConnection,
+) -> Result<(), Error> {
     // TODO: make async
     let full_path = match input_path.starts_with("/") {
         true => input_path,
@@ -127,7 +137,6 @@ pub fn load_data(input_path: String) -> Result<(), Error> {
             String::from(path_full.to_str().unwrap())
         }
     };
-    let connection = &mut establish_connection();
 
     info!("Load data from: {:?}", full_path);
     let res = diesel::sql_query(format!("
@@ -180,4 +189,173 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
     }
 
     Ok(())
+}
+
+/// Integration tests for load_data using testcontainers.
+/// Tests loading CSV data into the database.
+///
+/// Run with: cargo test --features integration_tests load_data
+#[cfg(all(test, feature = "integration_tests"))]
+mod tests {
+    use super::*;
+    use crate::models::{Cell, Radio};
+    use crate::schema::cells::dsl::*;
+    use diesel::Connection;
+    use diesel::ExpressionMethods;
+    use diesel::MysqlConnection;
+    use diesel::QueryDsl;
+    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+    use std::sync::OnceLock;
+    use testcontainers::core::ImageExt;
+    use testcontainers::runners::SyncRunner;
+    use testcontainers::Container;
+    use testcontainers_modules::mariadb::Mariadb;
+
+    const MARIADB_VERSION: &str = "11.4";
+    const CONTAINER_CSV_PATH: &str = "/var/lib/mysql-files/test-export.csv";
+
+    pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
+    // Shared container across all tests - initialized once
+    static TEST_DB: OnceLock<(Container<Mariadb>, String)> = OnceLock::new();
+
+    /// Initialize the shared test database container once.
+    /// Returns the database URL for creating connections.
+    fn init_test_db() -> &'static str {
+        let (_, url) = TEST_DB.get_or_init(|| {
+            // Get the path to the test CSV file from the project root
+            let test_csv_path =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/test-export.csv");
+
+            let container = Mariadb::default()
+                .with_tag(MARIADB_VERSION)
+                .with_copy_to(CONTAINER_CSV_PATH, test_csv_path)
+                .start()
+                .expect("Failed to start MariaDB container. Is Docker running?");
+
+            let host_port = container
+                .get_host_port_ipv4(3306)
+                .expect("Failed to get MySQL port");
+
+            let database_url = format!("mysql://root@127.0.0.1:{}/test", host_port);
+
+            // Run migrations once
+            let mut conn = MysqlConnection::establish(&database_url)
+                .expect("Failed to connect to test database");
+            conn.run_pending_migrations(MIGRATIONS)
+                .expect("Failed to run migrations");
+
+            (container, database_url)
+        });
+        url
+    }
+
+    /// Get a fresh connection with a clean database state.
+    /// Uses TRUNCATE to clear tables since LOAD DATA INFILE doesn't work in transactions.
+    fn get_test_connection() -> MysqlConnection {
+        let url = init_test_db();
+        let mut conn = MysqlConnection::establish(url).expect("Failed to connect to test database");
+
+        // Clean state for each test
+        diesel::sql_query("TRUNCATE TABLE cells")
+            .execute(&mut conn)
+            .expect("Failed to truncate cells table");
+
+        conn
+    }
+
+    #[test]
+    fn test_load_data_imports_csv_file() {
+        let mut conn = get_test_connection();
+
+        // Use the actual load_data_with_connection function
+        let result = load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn);
+        assert!(result.is_ok(), "Failed to load CSV: {:?}", result.err());
+
+        // Verify data was loaded - test CSV has 999 data rows (1000 lines - 1 header)
+        let count: i64 = cells
+            .count()
+            .get_result(&mut conn)
+            .expect("Failed to count cells");
+
+        assert!(count > 0, "No cells were loaded from CSV");
+        assert_eq!(count, 999, "Expected 999 cells from test CSV");
+    }
+
+    #[test]
+    fn test_load_data_can_query_specific_cell() {
+        let mut conn = get_test_connection();
+
+        // Load using the actual function
+        load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn)
+            .expect("Failed to load CSV data");
+
+        // Query for the first cell from the test CSV:
+        // GSM,262,2,317,11911,0,13.4524,52.5075,1454,122,1,1288894949,1724275323,0
+        let found_cell: Cell = cells
+            .filter(mcc.eq(262_u16))
+            .filter(net.eq(2_u16))
+            .filter(area.eq(317_u32))
+            .filter(cell.eq(11911_u64))
+            .first(&mut conn)
+            .expect("Failed to find cell");
+
+        assert_eq!(found_cell.mcc, 262);
+        assert_eq!(found_cell.net, 2);
+        assert_eq!(found_cell.area, 317);
+        assert_eq!(found_cell.cell, 11911);
+        assert!(matches!(found_cell.radio, Radio::Gsm));
+        // Check coordinates (approximately)
+        assert!((found_cell.lon - 13.4524).abs() < 0.001);
+        assert!((found_cell.lat - 52.5075).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_load_data_query_three_random_cells() {
+        let mut conn = get_test_connection();
+
+        // Load using the actual function
+        load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn)
+            .expect("Failed to load CSV data");
+
+        // Query 3 random cells from the database
+        let random_cells: Vec<Cell> = diesel::sql_query(
+            "SELECT radio, mcc, net, area, cell, unit, lon, lat, cell_range, samples, changeable, created, updated, average_signal 
+             FROM cells ORDER BY RAND() LIMIT 3",
+        )
+        .load(&mut conn)
+        .expect("Failed to query random cells");
+
+        assert_eq!(random_cells.len(), 3, "Expected 3 random cells");
+
+        // Verify each cell can be queried back via Diesel
+        for random_cell in &random_cells {
+            let found: Cell = cells
+                .filter(mcc.eq(random_cell.mcc))
+                .filter(net.eq(random_cell.net))
+                .filter(area.eq(random_cell.area))
+                .filter(cell.eq(random_cell.cell))
+                .first(&mut conn)
+                .expect("Failed to find random cell");
+
+            assert_eq!(found.mcc, random_cell.mcc);
+            assert_eq!(found.net, random_cell.net);
+        }
+
+        // Print the random cells for visibility
+        println!("Successfully queried 3 random cells:");
+        for (i, c) in random_cells.iter().enumerate() {
+            println!(
+                "  {}: {:?} mcc={} net={} area={} cell={} @ ({}, {})",
+                i + 1,
+                c.radio,
+                c.mcc,
+                c.net,
+                c.area,
+                c.cell,
+                c.lat,
+                c.lon
+            );
+        }
+    }
 }

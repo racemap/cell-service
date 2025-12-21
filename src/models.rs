@@ -9,7 +9,7 @@ use diesel::*;
 use serde_with::BoolFromInt;
 use std::io::Write;
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, FromSqlRow, AsExpression)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = CellsRadioEnum)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Radio {
@@ -47,7 +47,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
 }
 
 #[serde_with::serde_as]
-#[derive(Queryable, Selectable, Insertable)]
+#[derive(Queryable, Selectable, Insertable, QueryableByName)]
 #[diesel(table_name = crate::schema::cells)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
