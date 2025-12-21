@@ -194,6 +194,76 @@ curl "http://localhost:3000/cells?mcc=262&min_lat=52.0&max_lat=53.0&limit=100&cu
 
 When `hasMore` is `false`, there are no more results.
 
+---
+
+### Lookup Multiple Cells (Batch)
+
+Lookup multiple cells by `(mcc, mnc, lac, cid)` in a single request.
+
+This endpoint returns **one best match per input key**, aligned 1:1 with the request order.
+
+```
+POST /cells/lookup
+```
+
+**Request Body:**
+
+```json
+{
+  "cells": [
+    {"mcc": 262, "mnc": 1, "lac": 12345, "cid": 67890},
+    {"mcc": 262, "mnc": 1, "lac": 124, "cid": 457}
+  ]
+}
+```
+
+**Notes / Constraints:**
+
+- Max keys per request: **50**. If more are sent, the response is padded with `null` for the excess entries.
+- If multiple rows exist for the same `(mcc, mnc, lac, cid)` (e.g. different radios), the service picks a single deterministic “best” row:
+  - Higher `samples`
+  - Newer `updated`
+  - Higher radio generation (`NR` > `LTE` > `UMTS` > `GSM` > `CDMA`)
+
+**Example:**
+
+```bash
+curl -X POST "http://localhost:3000/cells/lookup" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cells": [
+      {"mcc": 262, "mnc": 1, "lac": 12345, "cid": 67890},
+      {"mcc": 999, "mnc": 999, "lac": 999, "cid": 999}
+    ]
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "cells": [
+    {
+      "radio": "LTE",
+      "mcc": 262,
+      "net": 1,
+      "area": 12345,
+      "cell": 67890,
+      "unit": 1,
+      "lon": 13.405,
+      "lat": 52.52,
+      "cellRange": 1000,
+      "samples": 50,
+      "changeable": true,
+      "created": "2024-01-15T10:30:00Z",
+      "updated": "2025-12-20T14:00:00Z",
+      "averageSignal": -85
+    },
+    null
+  ]
+}
+```
+
 ## Running Tests
 
 ```bash
