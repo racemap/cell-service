@@ -427,52 +427,16 @@ mod tests {
     mod query_cells_integration {
         use super::*;
         use crate::schema::cells;
+        use crate::utils::test_db::get_test_connection;
         use chrono::TimeZone;
-        use diesel::Connection;
         use diesel::MysqlConnection;
-        use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-        use std::sync::OnceLock;
-        use testcontainers::core::ImageExt;
-        use testcontainers::runners::SyncRunner;
-        use testcontainers::Container;
+        use diesel_migrations::{embed_migrations, EmbeddedMigrations};
         use testcontainers_modules::mariadb::Mariadb;
-
-        const MARIADB_VERSION: &str = "11.4";
 
         pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
-        static TEST_DB: OnceLock<(Container<Mariadb>, String)> = OnceLock::new();
-
-        fn init_test_db() -> &'static str {
-            let (_, url) = TEST_DB.get_or_init(|| {
-                let container = Mariadb::default()
-                    .with_tag(MARIADB_VERSION)
-                    .start()
-                    .expect("Failed to start MariaDB container. Is Docker running?");
-
-                let host_port = container
-                    .get_host_port_ipv4(3306)
-                    .expect("Failed to get MySQL port");
-
-                let database_url = format!("mysql://root@127.0.0.1:{}/test", host_port);
-
-                let mut conn = MysqlConnection::establish(&database_url)
-                    .expect("Failed to connect to test database");
-                conn.run_pending_migrations(MIGRATIONS)
-                    .expect("Failed to run migrations");
-
-                (container, database_url)
-            });
-            url
-        }
-
-        fn get_test_connection() -> MysqlConnection {
-            let url = init_test_db();
-            let mut conn =
-                MysqlConnection::establish(url).expect("Failed to connect to test database");
-            conn.begin_test_transaction()
-                .expect("Failed to begin test transaction");
-            conn
+        fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
+            get_test_connection(MIGRATIONS)
         }
 
         fn sample_cell_with_location(
@@ -510,7 +474,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_returns_all_cells_when_no_filters() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert test cells
             for i in 1..=5 {
@@ -542,7 +506,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_mcc() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert cells with different MCCs
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
@@ -576,7 +540,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_mnc() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
             let cell2 = sample_cell_with_location(262, 2, 100, 2, Radio::Lte, 52.0, 13.0);
@@ -609,7 +573,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_geofence() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Berlin area
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.52, 13.405);
@@ -652,7 +616,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_pagination_with_limit() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert 10 cells
             for i in 1..=10 {
@@ -684,7 +648,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_cursor_pagination() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert 10 cells
             for i in 1..=10 {
@@ -740,7 +704,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_radio() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
             let cell2 = sample_cell_with_location(262, 1, 100, 2, Radio::Gsm, 52.0, 13.0);
@@ -773,7 +737,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_combined_filters() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert various cells
             let cells_to_insert = vec![
@@ -812,7 +776,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_respects_max_limit() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert more than MAX_PAGE_SIZE cells
             for i in 1..=1005 {
@@ -845,7 +809,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_empty_result() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             let query = GetCellsQuery {
                 mcc: Some(999),

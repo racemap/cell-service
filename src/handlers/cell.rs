@@ -174,61 +174,18 @@ mod tests {
     mod query_cell_integration {
         use super::*;
         use crate::schema::cells;
+        use crate::utils::test_db::get_test_connection;
         use chrono::TimeZone;
-        use diesel::Connection;
         use diesel::MysqlConnection;
-        use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-        use std::sync::OnceLock;
-        use testcontainers::core::ImageExt;
-        use testcontainers::runners::SyncRunner;
-        use testcontainers::Container;
+        use diesel_migrations::{embed_migrations, EmbeddedMigrations};
         use testcontainers_modules::mariadb::Mariadb;
-
-        const MARIADB_VERSION: &str = "11.4";
 
         pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
-        // Shared container across all tests - initialized once
-        static TEST_DB: OnceLock<(Container<Mariadb>, String)> = OnceLock::new();
-
-        /// Initialize the shared test database container once.
-        /// Returns the database URL for creating connections.
-        fn init_test_db() -> &'static str {
-            let (_, url) = TEST_DB.get_or_init(|| {
-                let container = Mariadb::default()
-                    .with_tag(MARIADB_VERSION)
-                    .start()
-                    .expect("Failed to start MariaDB container. Is Docker running?");
-
-                let host_port = container
-                    .get_host_port_ipv4(3306)
-                    .expect("Failed to get MySQL port");
-
-                let database_url = format!("mysql://root@127.0.0.1:{}/test", host_port);
-
-                // Run migrations once
-                let mut conn = MysqlConnection::establish(&database_url)
-                    .expect("Failed to connect to test database");
-                conn.run_pending_migrations(MIGRATIONS)
-                    .expect("Failed to run migrations");
-
-                (container, database_url)
-            });
-            url
-        }
-
         /// Get a connection with an open transaction that will be rolled back.
         /// This provides test isolation without needing to truncate tables.
-        fn get_test_connection() -> MysqlConnection {
-            let url = init_test_db();
-            let mut conn =
-                MysqlConnection::establish(url).expect("Failed to connect to test database");
-
-            // Start a test transaction - automatically rolled back when connection drops
-            conn.begin_test_transaction()
-                .expect("Failed to begin test transaction");
-
-            conn
+        fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
+            get_test_connection(MIGRATIONS)
         }
 
         fn sample_cell(
@@ -264,7 +221,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_returns_matching_cell() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert test data
             let test_cell = sample_cell(262, 1, 12345, 67890, Radio::Lte);
@@ -293,7 +250,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_returns_none_when_not_found() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             let query = GetCellQuery {
                 mcc: 999,
@@ -309,7 +266,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_filters_by_radio_type() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             // Insert two cells with same identifiers but different radio types
             let lte_cell = sample_cell(262, 1, 100, 200, Radio::Lte);
@@ -350,7 +307,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_matches_all_filter_fields() {
-            let mut conn = get_test_connection();
+            let (_container, mut conn) = get_conn();
 
             let test_cell = sample_cell(310, 410, 5000, 6000, Radio::Umts);
             diesel::insert_into(cells::table)

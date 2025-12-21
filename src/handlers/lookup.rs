@@ -184,3 +184,115 @@ mod tests {
         }
     }
 }
+
+/// Integration tests for the lookup HTTP route using testcontainers.
+///
+/// These tests spin up a dedicated MariaDB container, run migrations, and then
+/// exercise the lookup query logic against a real DB.
+///
+/// Prerequisites:
+/// - Docker must be running
+///
+/// Run with: cargo test --features integration_tests lookup_route_integration
+#[cfg(feature = "integration_tests")]
+mod lookup_route_integration {
+    use super::*;
+    use crate::schema::cells;
+    use crate::utils::test_db::get_test_connection;
+    use chrono::TimeZone;
+    use diesel::MysqlConnection;
+    use diesel_migrations::{embed_migrations, EmbeddedMigrations};
+    use testcontainers_modules::mariadb::Mariadb;
+
+    pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
+    fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
+        get_test_connection(MIGRATIONS)
+    }
+
+    fn sample_cell(
+        mcc_val: u16,
+        mnc_val: u16,
+        lac_val: u32,
+        cid_val: u64,
+        radio_val: Radio,
+        samples_val: u32,
+        updated_epoch_seconds: i64,
+    ) -> Cell {
+        Cell {
+            radio: radio_val,
+            mcc: mcc_val,
+            net: mnc_val,
+            area: lac_val,
+            cell: cid_val,
+            unit: Some(1),
+            lon: 13.405,
+            lat: 52.52,
+            cell_range: 1000,
+            samples: samples_val,
+            changeable: true,
+            created: chrono::Utc
+                .with_ymd_and_hms(2024, 1, 15, 10, 30, 0)
+                .unwrap()
+                .naive_utc(),
+            updated: chrono::Utc
+                .timestamp_opt(updated_epoch_seconds, 0)
+                .single()
+                .unwrap()
+                .naive_utc(),
+            average_signal: Some(-85),
+        }
+    }
+
+    #[test]
+    fn test_query_cells_lookup_returns_best_match_and_preserves_order() {
+        let (_container, mut conn) = get_conn();
+
+        // Insert two rows for the same (mcc,mnc,lac,cid) with different radios.
+        // The route should return only one (the "best" candidate).
+        let key = CellLookupKey {
+            mcc: 262,
+            mnc: 1,
+            lac: 12345,
+            cid: 67890,
+        };
+
+        let worse = sample_cell(262, 1, 12345, 67890, Radio::Gsm, 10, 1_700_000_000);
+        let better = sample_cell(262, 1, 12345, 67890, Radio::Lte, 50, 1_700_000_100);
+
+        diesel::insert_into(cells::table)
+            .values(&worse)
+            .execute(&mut conn)
+            .unwrap();
+        diesel::insert_into(cells::table)
+            .values(&better)
+            .execute(&mut conn)
+            .unwrap();
+
+        let results = query_cells_lookup(
+            &[
+                key,
+                CellLookupKey {
+                    mcc: 999,
+                    mnc: 999,
+                    lac: 999,
+                    cid: 999,
+                },
+            ],
+            &mut conn,
+        )
+        .unwrap();
+
+        assert_eq!(results.len(), 2);
+
+        let first = results[0].as_ref().expect("Expected a match for first key");
+        assert_eq!(first.mcc, 262);
+        assert_eq!(first.net, 1);
+        assert_eq!(first.area, 12345);
+        assert_eq!(first.cell, 67890);
+        assert_eq!(first.samples, 50);
+        assert!(matches!(first.radio, Radio::Lte));
+
+        assert!(results[1].is_none());
+    }
+}
