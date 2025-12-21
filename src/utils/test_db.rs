@@ -1,6 +1,6 @@
 use diesel::Connection;
 use diesel::MysqlConnection;
-use diesel_migrations::{EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,6 +11,7 @@ use testcontainers::Container;
 use testcontainers_modules::mariadb::Mariadb;
 
 const MARIADB_VERSION: &str = "11.4";
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 static DB_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -32,9 +33,7 @@ pub fn random_db_name() -> String {
 ///
 /// The container is returned so the caller can keep it alive for the duration
 /// of the test (bind it to a local like `_container`).
-pub fn get_test_connection(
-    migrations: EmbeddedMigrations,
-) -> (Container<Mariadb>, MysqlConnection) {
+pub fn get_test_connection() -> (Container<Mariadb>, MysqlConnection) {
     let db_name = random_db_name();
 
     let container = Mariadb::default()
@@ -53,7 +52,7 @@ pub fn get_test_connection(
     let mut conn =
         MysqlConnection::establish(&database_url).expect("Failed to connect to test database");
 
-    conn.run_pending_migrations(migrations)
+    conn.run_pending_migrations(MIGRATIONS)
         .expect("Failed to run migrations");
 
     conn.begin_test_transaction()

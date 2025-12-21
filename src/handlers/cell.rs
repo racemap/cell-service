@@ -176,17 +176,6 @@ mod tests {
         use crate::schema::cells;
         use crate::utils::test_db::get_test_connection;
         use chrono::TimeZone;
-        use diesel::MysqlConnection;
-        use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-        use testcontainers_modules::mariadb::Mariadb;
-
-        pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
-
-        /// Get a connection with an open transaction that will be rolled back.
-        /// This provides test isolation without needing to truncate tables.
-        fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
-            get_test_connection(MIGRATIONS)
-        }
 
         fn sample_cell(
             mcc_val: u16,
@@ -221,7 +210,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_returns_matching_cell() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert test data
             let test_cell = sample_cell(262, 1, 12345, 67890, Radio::Lte);
@@ -250,7 +239,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_returns_none_when_not_found() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             let query = GetCellQuery {
                 mcc: 999,
@@ -266,7 +255,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_filters_by_radio_type() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert two cells with same identifiers but different radio types
             let lte_cell = sample_cell(262, 1, 100, 200, Radio::Lte);
@@ -307,7 +296,7 @@ mod tests {
 
         #[test]
         fn test_query_cell_matches_all_filter_fields() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             let test_cell = sample_cell(310, 410, 5000, 6000, Radio::Umts);
             diesel::insert_into(cells::table)

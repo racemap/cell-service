@@ -429,15 +429,6 @@ mod tests {
         use crate::schema::cells;
         use crate::utils::test_db::get_test_connection;
         use chrono::TimeZone;
-        use diesel::MysqlConnection;
-        use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-        use testcontainers_modules::mariadb::Mariadb;
-
-        pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
-
-        fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
-            get_test_connection(MIGRATIONS)
-        }
 
         fn sample_cell_with_location(
             mcc_val: u16,
@@ -474,7 +465,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_returns_all_cells_when_no_filters() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert test cells
             for i in 1..=5 {
@@ -506,7 +497,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_mcc() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert cells with different MCCs
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
@@ -540,7 +531,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_mnc() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
             let cell2 = sample_cell_with_location(262, 2, 100, 2, Radio::Lte, 52.0, 13.0);
@@ -573,7 +564,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_geofence() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Berlin area
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.52, 13.405);
@@ -616,7 +607,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_pagination_with_limit() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert 10 cells
             for i in 1..=10 {
@@ -648,7 +639,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_cursor_pagination() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert 10 cells
             for i in 1..=10 {
@@ -704,7 +695,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_filters_by_radio() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             let cell1 = sample_cell_with_location(262, 1, 100, 1, Radio::Lte, 52.0, 13.0);
             let cell2 = sample_cell_with_location(262, 1, 100, 2, Radio::Gsm, 52.0, 13.0);
@@ -737,7 +728,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_combined_filters() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert various cells
             let cells_to_insert = vec![
@@ -776,7 +767,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_respects_max_limit() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             // Insert more than MAX_PAGE_SIZE cells
             for i in 1..=1005 {
@@ -809,7 +800,7 @@ mod tests {
 
         #[test]
         fn test_query_cells_empty_result() {
-            let (_container, mut conn) = get_conn();
+            let (_container, mut conn) = get_test_connection();
 
             let query = GetCellsQuery {
                 mcc: Some(999),

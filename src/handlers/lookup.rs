@@ -200,15 +200,6 @@ mod lookup_route_integration {
     use crate::schema::cells;
     use crate::utils::test_db::get_test_connection;
     use chrono::TimeZone;
-    use diesel::MysqlConnection;
-    use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-    use testcontainers_modules::mariadb::Mariadb;
-
-    pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
-
-    fn get_conn() -> (testcontainers::Container<Mariadb>, MysqlConnection) {
-        get_test_connection(MIGRATIONS)
-    }
 
     fn sample_cell(
         mcc_val: u16,
@@ -246,7 +237,7 @@ mod lookup_route_integration {
 
     #[test]
     fn test_query_cells_lookup_returns_best_match_and_preserves_order() {
-        let (_container, mut conn) = get_conn();
+        let (_container, mut conn) = get_test_connection();
 
         // Insert two rows for the same (mcc,mnc,lac,cid) with different radios.
         // The route should return only one (the "best" candidate).
