@@ -50,7 +50,7 @@ impl FromSql<CellsRadioEnum, Mysql> for Radio {
 #[derive(Queryable, Selectable, Insertable, QueryableByName)]
 #[diesel(table_name = crate::schema::cells)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cell {
     pub radio: Radio,
