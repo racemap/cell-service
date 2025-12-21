@@ -223,9 +223,10 @@ mod tests {
     /// Returns the database URL for creating connections.
     fn init_test_db() -> &'static str {
         let (_, url) = TEST_DB.get_or_init(|| {
-            // Get the path to the test CSV file from the project root
-            let test_csv_path =
-                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/test-export.csv");
+            // Get the path to the test CSV file from the tests/fixtures directory
+            // This path is committed to git and available in CI
+            let test_csv_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/test-cells.csv");
 
             let container = Mariadb::default()
                 .with_tag(MARIADB_VERSION)
@@ -272,14 +273,14 @@ mod tests {
         let result = load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn);
         assert!(result.is_ok(), "Failed to load CSV: {:?}", result.err());
 
-        // Verify data was loaded - test CSV has 999 data rows (1000 lines - 1 header)
+        // Verify data was loaded - test CSV has 99 data rows (100 lines - 1 header)
         let count: i64 = cells
             .count()
             .get_result(&mut conn)
             .expect("Failed to count cells");
 
         assert!(count > 0, "No cells were loaded from CSV");
-        assert_eq!(count, 999, "Expected 999 cells from test CSV");
+        assert_eq!(count, 99, "Expected 99 cells from test CSV");
     }
 
     #[test]
