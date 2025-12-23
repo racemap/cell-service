@@ -1,4 +1,4 @@
-use tracing::info;
+use tracing::{debug, info};
 use warp::Filter;
 
 use tokio::sync::oneshot::Receiver;
@@ -13,7 +13,12 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
 }
 
 pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Promise<()> {
+    let port = config.port;
+    let bind = config.bind;
+
     info!("Start server.");
+    debug!("Port: {}", port);
+    debug!("Bind Address: {:?}", bind);
 
     let config_filter = warp::any().map(move || config.clone());
 
@@ -33,10 +38,9 @@ pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Pr
 
     let routes = warp::get().and(health_route().or(get_cell).or(get_cells));
 
-    let (_, server) =
-        warp::serve(routes).bind_with_graceful_shutdown(([127, 0, 0, 1], 3000), async {
-            shutdown_receiver.await.ok();
-        });
+    let (_, server) = warp::serve(routes).bind_with_graceful_shutdown((bind, port), async {
+        shutdown_receiver.await.ok();
+    });
 
     server.await;
     info!("Server stopped.");

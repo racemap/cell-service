@@ -1,6 +1,6 @@
 use dotenvy::dotenv;
 use once_cell::sync::Lazy;
-use std::env;
+use std::{env, net::Ipv4Addr};
 
 // Define the Config struct
 #[derive(Clone, Debug)]
@@ -13,6 +13,8 @@ pub struct Config {
     pub debug_traces: bool,
     pub otlp_endpoint: Option<String>,
     pub traces_endpoint: Option<String>,
+    pub port: u16,
+    pub bind: Ipv4Addr,
 }
 
 // Initialize dotenv and config only once
@@ -31,6 +33,8 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         debug_traces: std::env::var("OTEL_DEBUG_TRACES").is_ok(),
         otlp_endpoint: get_non_empty_env_var("OTEL_EXPORTER_OTLP_ENDPOINT"),
         traces_endpoint: get_non_empty_env_var("OTEL_TRACES_COLLECTOR_URL"),
+        port: parse_env_var::<u16>("PORT").unwrap_or(3000),
+        bind: parse_env_var::<Ipv4Addr>("BIND").unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
     }
 });
 
@@ -45,4 +49,9 @@ fn get_non_empty_env_var(key: &str) -> Option<String> {
             Some(trimmed.to_string())
         }
     })
+}
+
+/// Helper function to parse environment variable as a specific type, treating empty strings as None
+fn parse_env_var<T: std::str::FromStr>(key: &str) -> Option<T> {
+    get_non_empty_env_var(key).and_then(|s| s.parse().ok())
 }
