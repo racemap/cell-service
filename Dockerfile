@@ -12,6 +12,7 @@ COPY --from=builder /usr/local/cargo/bin/racemap-cell-service /usr/local/bin/rac
 COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin/diesel
 COPY ./migrations ./migrations
 COPY ./run.sh ./run.sh
+COPY ./diesel.toml ./diesel.toml
 RUN chmod +x /run.sh
 
 ENTRYPOINT ["/run.sh"]
