@@ -42,7 +42,7 @@ pub fn query_cell(
     }
 }
 
-#[instrument]
+#[instrument(skip(config))]
 pub async fn handle_get_cell(
     query: GetCellQuery,
     config: Config,

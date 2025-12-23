@@ -219,7 +219,7 @@ pub fn query_cells(
     })
 }
 
-#[instrument]
+#[instrument(skip(config))]
 pub async fn handle_get_cells(
     query: GetCellsQuery,
     config: Config,
