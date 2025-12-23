@@ -25,14 +25,22 @@ tokio-util = { version = "0.7.8", features = ["compat"] }
 async-compression = { version = "0.4.1", features = ["tokio", "gzip"] }
 lazy_static = "1.4.0"
 warp = "0.3.5"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-tracing-logfmt = "0.3.2"
 base64 = "0.22"
 testcontainers = { version = "0.23", features = ["blocking"], optional = true }
 testcontainers-modules = { version = "0.11", features = [
     "mariadb",
 ], optional = true }
+opentelemetry = "0.21"
+opentelemetry-otlp = { version = "0.14", features = [
+    "http-proto",
+    "reqwest-client",
+] }
+opentelemetry-semantic-conventions = "0.13"
+opentelemetry-stdout = { version = "0.2", features = ["trace"] }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+tracing = "0.1"
+tracing-opentelemetry = "0.22"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [dev-dependencies]
 serde_urlencoded = "0.7"

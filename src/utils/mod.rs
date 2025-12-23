@@ -1,6 +1,7 @@
 pub mod data;
 pub mod db;
 pub mod server;
+pub mod telemetry;
 #[cfg(feature = "integration_tests")]
 pub mod test_db;
 pub mod update_type;

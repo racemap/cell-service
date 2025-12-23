@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{models::*, utils::db::establish_connection};
 use diesel::prelude::*;
@@ -111,6 +112,7 @@ const DEFAULT_PAGE_SIZE: u32 = 100;
 const MAX_PAGE_SIZE: u32 = 1000;
 
 /// Queries multiple cells from the database with pagination and filtering.
+#[instrument(skip(connection))]
 pub fn query_cells(
     query: &GetCellsQuery,
     connection: &mut MysqlConnection,
@@ -216,6 +218,7 @@ pub fn query_cells(
     })
 }
 
+#[instrument]
 pub async fn handle_get_cells(query: GetCellsQuery) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = &mut establish_connection();
 

@@ -17,13 +17,11 @@ use tokio::{
     },
 };
 use tracing::info;
-use tracing_subscriber::{
-    layer::SubscriberExt,
-    {self, EnvFilter},
-};
+
 use utils::{
     data::update_loop,
     server::start_server,
+    telemetry::init_telemetry,
     utils::{flatten, FutureError},
 };
 
@@ -63,11 +61,8 @@ async fn process_handling(
 async fn main() {
     dotenv().ok();
 
-    let subscriber = tracing_subscriber::registry()
-        .with(tracing_logfmt::layer())
-        .with(EnvFilter::from_default_env());
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Global logger has already been set!");
+    // Initialize telemetry FIRST, before anything else
+    init_telemetry().unwrap();
 
     lazy_static::lazy_static! {
         static ref HALT: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));

@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::{models::*, utils::db::establish_connection};
 use diesel::prelude::*;
 use diesel::MysqlConnection;
+use tracing::instrument;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GetCellQuery {
     pub mcc: u16,
     pub net: u16,
@@ -14,6 +15,7 @@ pub struct GetCellQuery {
 }
 
 /// Queries a cell from the database. Extracted for testability.
+#[instrument(skip(connection))]
 pub fn query_cell(
     query: &GetCellQuery,
     connection: &mut MysqlConnection,
@@ -39,6 +41,7 @@ pub fn query_cell(
     }
 }
 
+#[instrument]
 pub async fn handle_get_cell(query: GetCellQuery) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = &mut establish_connection();
 
