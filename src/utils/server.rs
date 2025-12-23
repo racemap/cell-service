@@ -23,13 +23,7 @@ pub async fn start_server(shutdown_receiver: Receiver<()>) -> Promise<()> {
         .and(warp::query::<handlers::cells::GetCellsQuery>())
         .and_then(|query| async move { handlers::cells::handle_get_cells(query).await });
 
-    let lookup_cells = warp::path!("cells" / "lookup")
-        .and(warp::post())
-        .and(warp::body::json::<handlers::lookup::LookupCellsRequest>())
-        .and_then(|req| async move { handlers::lookup::handle_lookup_cells(req).await });
-
-    let get_routes = warp::get().and(health_route().or(get_cell).or(get_cells));
-    let routes = get_routes.or(lookup_cells);
+    let routes = warp::get().and(health_route().or(get_cell).or(get_cells));
 
     let (_, server) =
         warp::serve(routes).bind_with_graceful_shutdown(([127, 0, 0, 1], 3000), async {
