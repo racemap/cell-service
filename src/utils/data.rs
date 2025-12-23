@@ -3,6 +3,7 @@ use std::io::Error;
 use std::sync::Arc;
 
 use crate::models::LastUpdatesType;
+use crate::utils::config::Config;
 use async_compression::tokio::bufread::GzipDecoder;
 use chrono::DateTime;
 use chrono::TimeZone;
@@ -12,10 +13,9 @@ use super::update_type::get_update_type;
 use super::url_builder::{get_url_of_diff_package, get_url_of_full_package};
 use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
-use lazy_static::lazy_static;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
-use tracing::{debug, info};
+use tracing::info;
 
 #[derive(serde::Deserialize)]
 struct ErrorResponse {
@@ -26,11 +26,6 @@ use super::db::establish_connection;
 use super::db::get_last_update;
 use super::db::set_last_update;
 use super::utils::Promise;
-
-lazy_static! {
-    static ref OUTPUT_FOLDER: String =
-        env::var("TEMP_FOLDER").unwrap_or(String::from("/tmp/racemap-cell-service/data"));
-}
 
 async fn load_url(url: String, output: String) -> Promise<()> {
     let response = reqwest::get(url.clone()).await?;
@@ -66,9 +61,10 @@ fn convert_error(_err: reqwest::Error) -> std::io::Error {
     todo!()
 }
 
-pub async fn load_last_full() -> Promise<()> {
-    let url = get_url_of_full_package();
-    let output_path = String::from(format!("{}/full-cell-export.csv", *OUTPUT_FOLDER));
+pub async fn load_last_full(config: Config) -> Promise<()> {
+    let url = get_url_of_full_package(config.clone());
+    let output_folder = config.output_folder.clone();
+    let output_path = String::from(format!("{}/full-cell-export.csv", output_folder));
     info!("Start to load the last full data set.");
 
     match load_url(url, output_path.clone()).await {
@@ -79,45 +75,46 @@ pub async fn load_last_full() -> Promise<()> {
         }
     }
     info!("Load the full raw data set.");
-    load_data(output_path)?;
+    load_data(output_path, config.clone())?;
     info!("Upload the data set to the database.");
 
     let today = chrono::offset::Utc::now();
-    set_last_update(LastUpdatesType::Full, today.naive_utc())?;
+    set_last_update(LastUpdatesType::Full, today.naive_utc(), config.clone())?;
     info!("Successfully update the full data set.");
     Ok(())
 }
 
-pub async fn load_last_diff() -> Promise<()> {
+pub async fn load_last_diff(config: Config) -> Promise<()> {
     let today = chrono::offset::Utc::now();
-    let url = get_url_of_diff_package(today);
-    let output_path = String::from(format!("{}/diff-cell-export.csv", *OUTPUT_FOLDER));
+    let url = get_url_of_diff_package(today, config.clone());
+    let output_folder = config.output_folder.clone();
+    let output_path = String::from(format!("{}/diff-cell-export.csv", output_folder));
     info!("Start to load the last diff data set.");
 
     load_url(url, output_path.clone()).await?;
     info!("Load the last diff raw data set.");
-    load_data(output_path)?;
+    load_data(output_path, config.clone())?;
     info!("Upload the data set to the database.");
 
-    set_last_update(LastUpdatesType::Diff, today.naive_utc())?;
+    set_last_update(LastUpdatesType::Diff, today.naive_utc(), config.clone())?;
     info!("Successfully update the diff data set.");
 
     Ok(())
 }
 
-pub async fn update_local_database() -> Promise<()> {
-    let last_update = Utc.from_utc_datetime(&get_last_update().unwrap());
+pub async fn update_local_database(config: Config) -> Promise<()> {
+    let last_update = Utc.from_utc_datetime(&get_last_update(config.clone()).unwrap());
     let now = chrono::offset::Utc::now();
 
     match get_update_type(DateTime::from(last_update), now) {
         None => Ok(()),
-        Some(LastUpdatesType::Full) => load_last_full().await,
-        Some(LastUpdatesType::Diff) => load_last_diff().await,
+        Some(LastUpdatesType::Full) => load_last_full(config.clone()).await,
+        Some(LastUpdatesType::Diff) => load_last_diff(config.clone()).await,
     }
 }
 
-pub fn load_data(input_path: String) -> Result<(), Error> {
-    let connection = &mut establish_connection();
+pub fn load_data(input_path: String, config: Config) -> Result<(), Error> {
+    let connection = &mut establish_connection(config.clone());
     load_data_with_connection(input_path, connection)
 }
 
@@ -160,17 +157,17 @@ pub fn load_data_with_connection(
 }
 
 // create output folder if not exists
-pub async fn init() -> Promise<()> {
-    let path = std::path::Path::new(&*OUTPUT_FOLDER);
+pub async fn init(config: Config) -> Promise<()> {
+    let path = std::path::Path::new(&*config.output_folder);
     if !path.exists() {
         tokio::fs::create_dir_all(path).await?;
     }
     Ok(())
 }
 
-pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
+pub async fn update_loop(halt: &Arc<Mutex<bool>>, config: Config) -> Promise<()> {
     info!("Init update loop.");
-    init().await?;
+    init(config.clone()).await?;
 
     let mut count = 0;
     loop {
@@ -179,8 +176,8 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>) -> Promise<()> {
         }
 
         if (count % 600) == 0 {
-            debug!("Check for updates!");
-            update_local_database().await?;
+            info!("Check for updates!");
+            update_local_database(config.clone()).await?;
             count = 0;
         }
 

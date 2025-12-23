@@ -3,7 +3,7 @@ use warp::Filter;
 
 use tokio::sync::oneshot::Receiver;
 
-use crate::handlers;
+use crate::{handlers, utils::config::Config};
 
 use super::utils::Promise;
 
@@ -12,16 +12,24 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
     warp::path!("health").map(|| "OK")
 }
 
-pub async fn start_server(shutdown_receiver: Receiver<()>) -> Promise<()> {
+pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Promise<()> {
     info!("Start server.");
+
+    let config_filter = warp::any().map(move || config.clone());
 
     let get_cell = warp::path!("cell")
         .and(warp::query::<handlers::cell::GetCellQuery>())
-        .and_then(|query| async move { handlers::cell::handle_get_cell(query).await });
+        .and(config_filter.clone())
+        .and_then(
+            |query, config| async move { handlers::cell::handle_get_cell(query, config).await },
+        );
 
     let get_cells = warp::path!("cells")
         .and(warp::query::<handlers::cells::GetCellsQuery>())
-        .and_then(|query| async move { handlers::cells::handle_get_cells(query).await });
+        .and(config_filter.clone())
+        .and_then(
+            |query, config| async move { handlers::cells::handle_get_cells(query, config).await },
+        );
 
     let routes = warp::get().and(health_route().or(get_cell).or(get_cells));
 

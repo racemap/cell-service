@@ -1,19 +1,18 @@
 use chrono::{DateTime, Datelike, Utc};
-use std::env;
 
-const DEFAULT_DOWNLOAD_URL: &str = "https://opencellid.org/ocid/downloads";
+use crate::utils::config::Config;
 
 /// Builds the URL for the full cell tower data package.
-pub fn get_url_of_full_package() -> String {
-    let basic_url = env::var("DOWNLOAD_SOURCE_URL").unwrap_or(String::from(DEFAULT_DOWNLOAD_URL));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
+pub fn get_url_of_full_package(config: Config) -> String {
+    let basic_url = config.download_source_url;
+    let token = config.download_source_token;
     build_full_package_url(&basic_url, &token)
 }
 
 /// Builds the URL for the diff cell tower data package for a given date.
-pub fn get_url_of_diff_package(date: DateTime<Utc>) -> String {
-    let basic_url = env::var("DOWNLOAD_SOURCE_URL").unwrap_or(String::from(DEFAULT_DOWNLOAD_URL));
-    let token = env::var("DOWNLOAD_SOURCE_TOKEN").expect("DOWNLOAD_SOURCE_TOKEN must be set");
+pub fn get_url_of_diff_package(date: DateTime<Utc>, config: Config) -> String {
+    let basic_url = config.download_source_url;
+    let token = config.download_source_token;
     build_diff_package_url(&basic_url, &token, date)
 }
 

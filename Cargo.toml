@@ -26,6 +26,7 @@ async-compression = { version = "0.4.1", features = ["tokio", "gzip"] }
 lazy_static = "1.4.0"
 warp = "0.3.5"
 base64 = "0.22"
+once_cell = "1.21.3"
 testcontainers = { version = "0.23", features = ["blocking"], optional = true }
 testcontainers-modules = { version = "0.11", features = [
     "mariadb",

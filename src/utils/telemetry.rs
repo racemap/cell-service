@@ -7,17 +7,18 @@ use tracing::{info, warn};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{fmt::format::FmtSpan, prelude::*, EnvFilter};
 
-pub fn init_telemetry() -> Result<(), Box<dyn std::error::Error>> {
+use crate::utils::config::Config;
+
+pub fn init_telemetry(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     // Get service name from environment or use default
-    let service_name = std::env::var("SERVICE_NAME").unwrap_or_else(|_| "cell-service".to_string());
+    let service_name = config.service_name;
 
     // Check for debug mode - prints traces to console
-    let debug_traces = std::env::var("OTEL_DEBUG_TRACES").is_ok();
+    let debug_traces = config.debug_traces;
 
     // Check if any OTLP endpoint is configured (general or signal-specific)
-    let general_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").ok();
-    let traces_endpoint = std::env::var("OTEL_TRACES_COLLECTOR_URL").ok();
-
+    let general_endpoint = config.otlp_endpoint;
+    let traces_endpoint = config.traces_endpoint;
     if debug_traces {
         // Debug mode: print traces to stdout
         let provider = opentelemetry_sdk::trace::TracerProvider::builder()

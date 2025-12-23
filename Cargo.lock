@@ -1840,6 +1840,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "libflate",
+ "once_cell",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",

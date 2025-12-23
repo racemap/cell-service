@@ -5,7 +5,6 @@ pub mod utils;
 
 use std::sync::Arc;
 
-use dotenvy::dotenv;
 use tokio::{
     signal::{
         ctrl_c,
@@ -19,6 +18,7 @@ use tokio::{
 use tracing::info;
 
 use utils::{
+    config::CONFIG,
     data::update_loop,
     server::start_server,
     telemetry::init_telemetry,
@@ -59,10 +59,11 @@ async fn process_handling(
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    // Access the configuration values early to use them in runtime creation
+    let config = CONFIG.clone();
 
     // Initialize telemetry FIRST, before anything else
-    init_telemetry().unwrap();
+    init_telemetry(config.clone()).unwrap();
 
     lazy_static::lazy_static! {
         static ref HALT: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
@@ -70,8 +71,8 @@ async fn main() {
     let (tx, rx) = oneshot::channel();
 
     let process = tokio::spawn(process_handling(&HALT, tx));
-    let update = tokio::spawn(update_loop(&HALT));
-    let server = tokio::spawn(start_server(rx));
+    let update = tokio::spawn(update_loop(&HALT, config.clone()));
+    let server = tokio::spawn(start_server(rx, config.clone()));
 
     match tokio::try_join!(flatten(update), flatten(process), flatten(server)) {
         Ok(_) => {}

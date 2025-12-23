@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::utils::config::Config;
 use crate::{models::*, utils::db::establish_connection};
 use diesel::prelude::*;
 use diesel::MysqlConnection;
@@ -42,8 +43,11 @@ pub fn query_cell(
 }
 
 #[instrument]
-pub async fn handle_get_cell(query: GetCellQuery) -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = &mut establish_connection();
+pub async fn handle_get_cell(
+    query: GetCellQuery,
+    config: Config,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = &mut establish_connection(config.clone());
 
     match query_cell(&query, connection) {
         Ok(Some(entry)) => Ok(warp::reply::json(&entry)),
