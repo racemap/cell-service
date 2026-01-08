@@ -16,7 +16,9 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
 /// If CORS_ORIGINS is set, only those origins are allowed.
 /// If CORS_ORIGINS is not set or empty, all origins are allowed.
 pub fn cors_filter(cors_origins: Vec<String>) -> Cors {
-    let cors = warp::cors().allow_methods(vec!["GET", "OPTIONS"]);
+    let cors = warp::cors()
+        .allow_methods(vec!["GET", "OPTIONS"])
+        .allow_headers(vec!["Content-Type"]);
 
     if cors_origins.is_empty() {
         debug!("CORS configured to allow any origin");
