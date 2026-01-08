@@ -40,11 +40,12 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
 
 ## Environment Variables
 
-| Variable             | Description                      | Example                             |
-| -------------------- | -------------------------------- | ----------------------------------- |
-| `DATABASE_URL`       | MySQL connection string          | `mysql://user:pass@localhost/cells` |
-| `RUST_LOG`           | Log level                        | `info`                              |
-| `OPENCELLID_API_KEY` | API key for OpenCellID downloads | `your-api-key`                      |
+| Variable             | Description                                                                        | Example                                 |
+| -------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| `DATABASE_URL`       | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
+| `RUST_LOG`           | Log level                                                                          | `info`                                  |
+| `OPENCELLID_API_KEY` | API key for OpenCellDD downloads                                                   | `your-api-key`                          |
+| `CORS_ORIGINS`       | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
 
 ## Getting Started
 
