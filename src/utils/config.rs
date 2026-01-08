@@ -15,6 +15,7 @@ pub struct Config {
     pub traces_endpoint: Option<String>,
     pub port: u16,
     pub bind: Ipv4Addr,
+    pub cors_origin: Option<String>,
 }
 
 // Initialize dotenv and config only once
@@ -35,6 +36,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         traces_endpoint: get_non_empty_env_var("OTEL_TRACES_COLLECTOR_URL"),
         port: parse_env_var::<u16>("PORT").unwrap_or(3000),
         bind: parse_env_var::<Ipv4Addr>("BIND").unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
+        cors_origin: get_non_empty_env_var("CORS_ORIGIN"),
     }
 });
 
