@@ -91,7 +91,13 @@ pub async fn load_last_diff(config: Config) -> Promise<()> {
     let output_path = String::from(format!("{}/diff-cell-export.csv", output_folder));
     info!("Start to load the last diff data set.");
 
-    load_url(url, output_path.clone()).await?;
+    match load_url(url, output_path.clone()).await {
+        Ok(_) => {}
+        Err(e) => {
+            info!("Load Data Error: {}", e);
+            return Ok(());
+        }
+    }
     info!("Load the last diff raw data set.");
     load_data(output_path, config.clone())?;
     info!("Upload the data set to the database.");
@@ -177,7 +183,9 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>, config: Config) -> Promise<()>
 
         if (count % 600) == 0 {
             debug!("Check for updates!");
-            update_local_database(config.clone()).await?;
+            if let Err(e) = update_local_database(config.clone()).await {
+                info!("Update check failed: {}. Will retry later.", e);
+            }
             count = 0;
         }
 
