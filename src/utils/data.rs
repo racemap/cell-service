@@ -15,7 +15,7 @@ use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
-use tracing::{debug, info};
+use tracing::{debug, error, info, warn};
 
 #[derive(serde::Deserialize)]
 struct ErrorResponse {
@@ -94,7 +94,7 @@ pub async fn load_last_diff(config: Config) -> Promise<()> {
     match load_url(url, output_path.clone()).await {
         Ok(_) => {}
         Err(e) => {
-            info!("Load Data Error: {}", e);
+            error!("Load Data Error: {}", e);
             return Err(e);
         }
     }
