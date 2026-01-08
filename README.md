@@ -1,15 +1,36 @@
 # Cell Service
 
-A Rust-based service for storing and querying cell tower location data. The service automatically syncs cell tower data from [OpenCelliD](https://opencellid.org/) and provides a REST API for querying cell information.
+A Rust-based service for storing and querying cell tower location data. The service automatically syncs cell tower data from [OpenCellID](https://opencellid.org/) and provides a REST API for querying cell information.
 
 ## Features
 
-- **Automatic Data Sync**: Periodically downloads and updates cell tower data from OpenCelliD
+- **Automatic Data Sync**: Periodically downloads and updates cell tower data from OpenCellID
 - **REST API**: Query individual cells or fetch multiple cells with filtering and pagination
 - **Geofence Filtering**: Filter cells by geographic bounding box
 - **Network Filtering**: Filter by MCC (Mobile Country Code) and MNC (Mobile Network Code)
 - **Radio Type Filtering**: Filter by radio technology (GSM, UMTS, CDMA, LTE, NR)
 - **Cursor-based Pagination**: Efficiently paginate through large result sets
+
+## Data Synchronization
+
+The service automatically synchronizes cell tower data from [OpenCellID](https://opencellid.org/).
+
+### Update Schedule
+
+- **Check interval**: Every 10 minutes
+- **Update window**: After 4:00 AM UTC (OpenCellID publishes new data at ~3:00 AM UTC)
+- **Update types**:
+  - **Full update**: Downloads the complete dataset (~2GB compressed). Triggered on first run, after gaps of more than 24 hours, or at month/year boundaries.
+  - **Diff update**: Downloads only changes from the previous day (~few MB). Used for daily incremental updates when the last update was within 24 hours.
+
+### How It Works
+
+1. The service checks for updates every 10 minutes
+2. Before 4:00 AM UTC, updates are skipped to wait for OpenCellID's daily data refresh
+3. After 4:00 AM UTC, the service determines the update type based on the last successful update:
+   - Same day: No update needed
+   - Yesterday (within 24h): Download today's diff file
+   - Older: Download full dataset
 
 ## Requirements
 
@@ -23,7 +44,7 @@ A Rust-based service for storing and querying cell tower location data. The serv
 | -------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
 | `DATABASE_URL`       | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
 | `RUST_LOG`           | Log level                                                                          | `info`                                  |
-| `OPENCELLID_API_KEY` | API key for OpenCelliD downloads                                                   | `your-api-key`                          |
+| `OPENCELLID_API_KEY` | API key for OpenCellDD downloads                                                   | `your-api-key`                          |
 | `CORS_ORIGINS`       | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
 
 ## Getting Started
