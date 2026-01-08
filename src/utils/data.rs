@@ -184,7 +184,7 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>, config: Config) -> Promise<()>
         if (count % 600) == 0 {
             debug!("Check for updates!");
             if let Err(e) = update_local_database(config.clone()).await {
-                info!("Update check failed: {}. Will retry later.", e);
+                warn!("Update check failed: {}. Will retry later.", e);
             }
             count = 0;
         }
