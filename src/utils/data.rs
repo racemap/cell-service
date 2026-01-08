@@ -205,74 +205,31 @@ mod tests {
     use super::*;
     use crate::models::{Cell, Radio};
     use crate::schema::cells::dsl::*;
-    use diesel::Connection;
+    use crate::utils::test_db::{get_test_connection_with_options, TestConnectionOptions};
     use diesel::ExpressionMethods;
     use diesel::MysqlConnection;
     use diesel::QueryDsl;
-    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-    use std::sync::OnceLock;
-    use testcontainers::core::ImageExt;
-    use testcontainers::runners::SyncRunner;
     use testcontainers::Container;
     use testcontainers_modules::mariadb::Mariadb;
 
-    const MARIADB_VERSION: &str = "11.4";
     const CONTAINER_CSV_PATH: &str = "/var/lib/mysql-files/test-export.csv";
 
-    pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+    /// Get a fresh connection with its own isolated MariaDB container.
+    /// Each test gets its own container and database to avoid race conditions.
+    /// Returns the container (to keep it alive) and the connection.
+    fn get_test_connection() -> (Container<Mariadb>, MysqlConnection) {
+        let test_csv_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/test-cells.csv");
 
-    // Shared container across all tests - initialized once
-    static TEST_DB: OnceLock<(Container<Mariadb>, String)> = OnceLock::new();
-
-    /// Initialize the shared test database container once.
-    /// Returns the database URL for creating connections.
-    fn init_test_db() -> &'static str {
-        let (_, url) = TEST_DB.get_or_init(|| {
-            // Get the path to the test CSV file from the tests/fixtures directory
-            // This path is committed to git and available in CI
-            let test_csv_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures/test-cells.csv");
-
-            let container = Mariadb::default()
-                .with_tag(MARIADB_VERSION)
-                .with_copy_to(CONTAINER_CSV_PATH, test_csv_path)
-                .start()
-                .expect("Failed to start MariaDB container. Is Docker running?");
-
-            let host_port = container
-                .get_host_port_ipv4(3306)
-                .expect("Failed to get MySQL port");
-
-            let database_url = format!("mysql://root@127.0.0.1:{}/test", host_port);
-
-            // Run migrations once
-            let mut conn = MysqlConnection::establish(&database_url)
-                .expect("Failed to connect to test database");
-            conn.run_pending_migrations(MIGRATIONS)
-                .expect("Failed to run migrations");
-
-            (container, database_url)
-        });
-        url
-    }
-
-    /// Get a fresh connection with a clean database state.
-    /// Uses TRUNCATE to clear tables since LOAD DATA INFILE doesn't work in transactions.
-    fn get_test_connection() -> MysqlConnection {
-        let url = init_test_db();
-        let mut conn = MysqlConnection::establish(url).expect("Failed to connect to test database");
-
-        // Clean state for each test
-        diesel::sql_query("TRUNCATE TABLE cells")
-            .execute(&mut conn)
-            .expect("Failed to truncate cells table");
-
-        conn
+        get_test_connection_with_options(TestConnectionOptions {
+            copy_file: Some((test_csv_path, CONTAINER_CSV_PATH)),
+            use_test_transaction: false, // LOAD DATA INFILE doesn't work in transactions
+        })
     }
 
     #[test]
     fn test_load_data_imports_csv_file() {
-        let mut conn = get_test_connection();
+        let (_container, mut conn) = get_test_connection();
 
         // Use the actual load_data_with_connection function
         let result = load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn);
@@ -290,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_load_data_can_query_specific_cell() {
-        let mut conn = get_test_connection();
+        let (_container, mut conn) = get_test_connection();
 
         // Load using the actual function
         load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn)
@@ -318,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_load_data_query_three_random_cells() {
-        let mut conn = get_test_connection();
+        let (_container, mut conn) = get_test_connection();
 
         // Load using the actual function
         load_data_with_connection(CONTAINER_CSV_PATH.to_string(), &mut conn)
