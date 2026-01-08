@@ -12,28 +12,31 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
     warp::path!("health").map(|| "OK")
 }
 
-/// Creates a CORS filter based on the configured origin.
-/// If CORS_ORIGIN is set, only that origin is allowed.
-/// If CORS_ORIGIN is not set, all origins are allowed.
-pub fn cors_filter(cors_origin: Option<String>) -> Cors {
+/// Creates a CORS filter based on the configured origins.
+/// If CORS_ORIGINS is set, only those origins are allowed.
+/// If CORS_ORIGINS is not set or empty, all origins are allowed.
+pub fn cors_filter(cors_origins: Vec<String>) -> Cors {
     let cors = warp::cors().allow_methods(vec!["GET", "OPTIONS"]);
 
-    match cors_origin {
-        Some(origin) => {
-            debug!("CORS configured with origin: {}", origin);
-            cors.allow_origin(origin.as_str()).build()
-        }
-        None => {
-            debug!("CORS configured to allow any origin");
-            cors.allow_any_origin().build()
-        }
+    if cors_origins.is_empty() {
+        debug!("CORS configured to allow any origin");
+        cors.allow_any_origin().build()
+    } else {
+        debug!("CORS configured with origins: {:?}", cors_origins);
+        cors.allow_origins(
+            cors_origins
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>(),
+        )
+        .build()
     }
 }
 
 pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Promise<()> {
     let port = config.port;
     let bind = config.bind;
-    let cors_origin = config.cors_origin.clone();
+    let cors_origins = config.cors_origins.clone();
 
     info!("Start server.");
     debug!("Port: {}", port);
@@ -55,7 +58,7 @@ pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Pr
             |query, config| async move { handlers::cells::handle_get_cells(query, config).await },
         );
 
-    let cors = cors_filter(cors_origin);
+    let cors = cors_filter(cors_origins);
     let routes = warp::get()
         .and(health_route().or(get_cell).or(get_cells))
         .with(cors);

@@ -19,11 +19,12 @@ A Rust-based service for storing and querying cell tower location data. The serv
 
 ## Environment Variables
 
-| Variable             | Description                      | Example                             |
-| -------------------- | -------------------------------- | ----------------------------------- |
-| `DATABASE_URL`       | MySQL connection string          | `mysql://user:pass@localhost/cells` |
-| `RUST_LOG`           | Log level                        | `info`                              |
-| `OPENCELLID_API_KEY` | API key for OpenCelliD downloads | `your-api-key`                      |
+| Variable             | Description                                                                        | Example                                 |
+| -------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| `DATABASE_URL`       | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
+| `RUST_LOG`           | Log level                                                                          | `info`                                  |
+| `OPENCELLID_API_KEY` | API key for OpenCelliD downloads                                                   | `your-api-key`                          |
+| `CORS_ORIGINS`       | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
 
 ## Getting Started
 
