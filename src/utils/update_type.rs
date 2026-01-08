@@ -36,7 +36,7 @@ pub fn get_update_type(last_update: DateTime<Utc>, now: DateTime<Utc>) -> Option
         return Some(LastUpdatesType::Full);
     };
     if last_update.day() == now.day() {
-        info!("Last update was today. Skip update.");
+        debug!("Last update was today. Skip update.");
         return None;
     };
 

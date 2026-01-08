@@ -15,7 +15,7 @@ use diesel::RunQueryDsl;
 use futures::stream::TryStreamExt;
 use tokio::sync::Mutex;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(serde::Deserialize)]
 struct ErrorResponse {
@@ -176,7 +176,7 @@ pub async fn update_loop(halt: &Arc<Mutex<bool>>, config: Config) -> Promise<()>
         }
 
         if (count % 600) == 0 {
-            info!("Check for updates!");
+            debug!("Check for updates!");
             update_local_database(config.clone()).await?;
             count = 0;
         }
