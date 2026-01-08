@@ -11,6 +11,27 @@ A Rust-based service for storing and querying cell tower location data. The serv
 - **Radio Type Filtering**: Filter by radio technology (GSM, UMTS, CDMA, LTE, NR)
 - **Cursor-based Pagination**: Efficiently paginate through large result sets
 
+## Data Synchronization
+
+The service automatically synchronizes cell tower data from [OpenCelliD](https://opencellid.org/).
+
+### Update Schedule
+
+- **Check interval**: Every 10 minutes
+- **Update window**: After 4:00 AM UTC (OpenCelliD publishes new data at ~3:00 AM UTC)
+- **Update types**:
+  - **Full update**: Downloads the complete dataset (~2GB compressed). Triggered on first run, after gaps of more than 24 hours, or at month/year boundaries.
+  - **Diff update**: Downloads only changes from the previous day (~few MB). Used for daily incremental updates when the last update was within 24 hours.
+
+### How It Works
+
+1. The service checks for updates every 10 minutes
+2. Before 4:00 AM UTC, updates are skipped to wait for OpenCelliD's daily data refresh
+3. After 4:00 AM UTC, the service determines the update type based on the last successful update:
+   - Same day: No update needed
+   - Yesterday (within 24h): Download today's diff file
+   - Older: Download full dataset
+
 ## Requirements
 
 - Rust 1.92.0+
