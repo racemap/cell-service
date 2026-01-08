@@ -95,7 +95,7 @@ pub async fn load_last_diff(config: Config) -> Promise<()> {
         Ok(_) => {}
         Err(e) => {
             info!("Load Data Error: {}", e);
-            return Ok(());
+            return Err(e);
         }
     }
     info!("Load the last diff raw data set.");
