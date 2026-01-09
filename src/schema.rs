@@ -14,7 +14,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::CellsRadioEnum;
 
-    cells (radio, mcc, net, area, cell) {
+    cells (mcc, net, area, cell, radio) {
         #[max_length = 4]
         radio -> CellsRadioEnum,
         mcc -> Unsigned<Smallint>,
