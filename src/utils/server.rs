@@ -1,5 +1,5 @@
 use tracing::{debug, info};
-use warp::{cors::Cors, Filter};
+use warp::{cors::Cors, http::Method, Filter};
 
 use tokio::sync::oneshot::Receiver;
 
@@ -17,8 +17,8 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
 /// If CORS_ORIGINS is not set or empty, all origins are allowed.
 pub fn cors_filter(cors_origins: Vec<String>) -> Cors {
     let cors = warp::cors()
-        .allow_methods(vec!["GET", "OPTIONS"])
-        .allow_headers(vec!["Content-Type"]);
+        .allow_methods(vec![Method::GET, Method::OPTIONS])
+        .allow_headers(vec!["Content-Type", "Traceparent", "Authorization"]);
 
     if cors_origins.is_empty() {
         debug!("CORS configured to allow any origin");
