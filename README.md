@@ -53,6 +53,11 @@ independently:
 
 Clients MUST fall back to showing the raw numeric identifiers for whichever fields are `null`.
 
+`country` and `countryCode` degrade independently: 107 rows carry a country with no code, because
+the upstream code is a multi-territory list (`AU/CX/CC/NF`) or a subdivision (`GE-AB`) rather than
+an alpha-2. Australia is the largest affected country. Do not treat a present `country` as a
+guarantee that `countryCode` is present.
+
 The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
 hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
 [mcc-mnc-list](https://github.com/cavoq/mcc-mnc-list). To refresh:
@@ -178,6 +183,44 @@ curl "http://localhost:3000/cell?mcc=262&net=1&area=12345&cell=67890"
 ```
 
 Returns `null` if no cell is found.
+
+---
+
+### Get Carrier
+
+Resolve the operator and country for an MCC/MNC pair, without needing a cell.
+
+```
+GET /carrier?mcc=<mcc>&net=<mnc>
+```
+
+**Parameters:**
+
+| Parameter | Type    | Required | Description                                       |
+| --------- | ------- | -------- | ------------------------------------------------- |
+| `mcc`     | integer | Yes      | Mobile Country Code                               |
+| `net`     | integer | Yes      | Mobile Network Code. Also accepted as `mnc`       |
+
+**Example:**
+```bash
+curl "http://localhost:3000/carrier?mcc=262&net=2"
+```
+
+**Response:**
+```json
+{
+  "operator": "Vodafone",
+  "country": "Germany",
+  "countryCode": "DE"
+}
+```
+
+Served from the compiled-in table described under [Carrier Lookup](#carrier-lookup); no database
+access, so the same null contract applies. A known MCC with an unknown MNC still returns `200` with
+`operator: null` and the country populated.
+
+**This endpoint returns `404` with a body of `null` when the MCC is unknown** — unlike `/cell`,
+which answers a miss with `200` and a body of `null`. Do not infer one from the other.
 
 ---
 

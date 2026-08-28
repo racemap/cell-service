@@ -3,7 +3,8 @@ use std::collections::HashMap;
 
 /// Human-readable carrier and country for an (MCC, MNC) pair. `None` means "unknown" —
 /// callers show the raw numeric identifiers instead.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Carrier {
     pub operator: Option<String>,
     pub country: Option<String>,

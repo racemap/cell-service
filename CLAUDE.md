@@ -35,7 +35,7 @@ Other env vars (all optional, `src/utils/config.rs`): `TEMP_FOLDER`, `DOWNLOAD_S
 
 1. `utils::data::update_loop` — ticks every second, checks for a dataset update every 600 ticks.
 2. `process_handling` — waits on SIGTERM/SIGINT/Ctrl-C, flips the shared `HALT` mutex, then fires a oneshot that triggers warp's graceful shutdown.
-3. `utils::server::start_server` — warp routes `/health`, `/cell`, `/cells`.
+3. `utils::server::start_server` — warp routes `/health`, `/cell`, `/cells`, `/carrier`.
 
 ### Sync pipeline
 
@@ -62,6 +62,11 @@ The README documents a `POST /cells/lookup` batch endpoint; it is not implemente
   because `Cell` has its own `cell` field that a matching name would shadow.
 
 ### Carrier lookup
+
+`GET /carrier?mcc=&net=` (alias `mnc`) exposes the lookup directly. It is the one handler that does
+not follow the `query_*`/`handle_*` split: no DB, no `Config`, sync, and its route
+(`server::carrier_route`) is extracted like `health_route` so `warp::test::request` can assert
+status codes. Unknown MCC is `404` + `null`; unknown MNC under a known MCC stays `200`.
 
 `utils::carrier::lookup(mcc, net)` resolves the human-readable operator and country from
 `src/utils/mcc-mnc.csv`, compiled in via `include_str!` and parsed once into a `HashMap` on first
