@@ -27,6 +27,11 @@ def clean_country(name):
 
 
 def normalize(record):
+    """One upstream record to one output row, or None if its MNC is not a code.
+
+    Prefers the consumer-facing brand over the legal entity, and carries a sort rank so
+    duplicate (mcc, mnc) keys can be collapsed later.
+    """
     try:
         mnc = int(record["mnc"])
     except (TypeError, ValueError):
@@ -44,6 +49,12 @@ def normalize(record):
 
 
 def main():
+    """Fetch the upstream list and write the lookup table Rust compiles in.
+
+    Every ambiguity is resolved here rather than at runtime: duplicate keys collapse by
+    status then by the MCC's dominant country, non-alpha-2 country codes drop, and each MCC
+    gets an mnc-less fallback row. Output is sorted so the committed diff stays reviewable.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", default=SOURCE)
     parser.add_argument("--out", default="src/utils/mcc-mnc.csv")
