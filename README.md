@@ -264,7 +264,7 @@ When `hasMore` is `false`, there are no more results.
 > 404. This section is a design sketch for a planned endpoint, kept for reference. Do not build
 > against it.
 
-Lookup multiple cells by `(mcc, mnc, lac, cid)` in a single request.
+Look up multiple cells by `(mcc, mnc, lac, cid)` in a single request.
 
 This endpoint returns **one best match per input key**, aligned 1:1 with the request order.
 
