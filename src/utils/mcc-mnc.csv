@@ -1114,9 +1114,9 @@ mcc,mnc,operator,country,country_code
 288,2,Nema,Faroe Islands,FO
 288,3,TOSA,Faroe Islands,FO
 288,10,Føroya Tele,Faroe Islands,FO
-289,,,Abkhazia,
-289,67,Aquafon,Abkhazia,
-289,88,A-Mobile,Abkhazia,
+289,,,Abkhazia,GE
+289,67,Aquafon,Abkhazia,GE
+289,88,A-Mobile,Abkhazia,GE
 290,,,Greenland,GL
 290,1,tusass,Greenland,GL
 290,2,Nanoq Media,Greenland,GL
@@ -2713,75 +2713,75 @@ mcc,mnc,operator,country,country_code
 502,155,Clixster,Malaysia,MY
 502,156,Altel,Malaysia,MY
 502,157,Telin,Malaysia,MY
-505,,,Australia,
-505,1,Telstra,Australia,
-505,2,Optus,Australia,
-505,3,Vodafone,Australia,
-505,4,Department of Defence,Australia,
-505,5,Ozitel,Australia,
-505,6,3,Australia,
-505,7,TPG Telecom,Australia,
-505,8,One.Tel,Australia,
-505,9,Airnet,Australia,
-505,10,Norfolk Island,Australia,
-505,11,Telstra,Australia,
-505,12,3,Australia,
-505,13,RailCorp,Australia,
-505,14,AAPT,Australia,
-505,15,3GIS,Australia,
-505,16,VicTrack,Australia,
-505,17,Optus,Australia,
-505,18,Pactel,Australia,
-505,19,Lycamobile,Australia,
-505,20,Ausgrid Corporation,Australia,
-505,21,Queensland Rail,Australia,
-505,22,iiNet,Australia,
-505,23,Vocus,Australia,
-505,24,Advanced Communications Technologies,Australia,
-505,25,Pilbara Iron,Australia,
-505,26,Sinch Australia,Australia,
-505,27,Ergon Energy Telecommunications,Australia,
-505,28,RCOM International,Australia,
-505,30,Compatel,Australia,
-505,31,BHP,Australia,
-505,32,Thales Australia,Australia,
-505,33,Sinch Australia,Australia,
-505,34,Santos,Australia,
-505,35,Bird.com,Australia,
-505,36,Optus,Australia,
-505,37,Yancoal,Australia,
-505,38,Truphone,Australia,
-505,39,Telstra,Australia,
-505,40,CITIC Pacific Mining,Australia,
-505,41,Aqura Technologies,Australia,
-505,42,GEMCO,Australia,
-505,43,Arrow Energy,Australia,
-505,44,Roy Hill,Australia,
-505,45,Clermont Coal Operations,Australia,
-505,46,AngloGold Ashanti Australia Ltd,Australia,
-505,47,Woodside Energy,Australia,
-505,48,Titan ICT,Australia,
-505,49,Field Solutions Group,Australia,
-505,50,Pivotel Group,Australia,
-505,51,Fortescue,Australia,
-505,52,OptiTel Australia,Australia,
-505,53,Shell Australia,Australia,
-505,54,Nokia,Australia,
-505,55,New South Wales Government Telecommunications Authority,Australia,
-505,56,Nokia,Australia,
-505,57,CiFi,Australia,
-505,58,Wi-Sky,Australia,
-505,59,Starlink,Australia,
-505,60,Starlink,Australia,
-505,61,CommTel NS,Australia,
-505,62,NBN,Australia,
-505,63,MarchNet,Australia,
-505,68,NBN,Australia,
-505,71,Telstra,Australia,
-505,72,Telstra,Australia,
-505,88,Pivotel Group,Australia,
-505,90,Alphawest,Australia,
-505,99,Telstra,Australia,
+505,,,Australia,AU
+505,1,Telstra,Australia,AU
+505,2,Optus,Australia,AU
+505,3,Vodafone,Australia,AU
+505,4,Department of Defence,Australia,AU
+505,5,Ozitel,Australia,AU
+505,6,3,Australia,AU
+505,7,TPG Telecom,Australia,AU
+505,8,One.Tel,Australia,AU
+505,9,Airnet,Australia,AU
+505,10,Norfolk Island,Australia,AU
+505,11,Telstra,Australia,AU
+505,12,3,Australia,AU
+505,13,RailCorp,Australia,AU
+505,14,AAPT,Australia,AU
+505,15,3GIS,Australia,AU
+505,16,VicTrack,Australia,AU
+505,17,Optus,Australia,AU
+505,18,Pactel,Australia,AU
+505,19,Lycamobile,Australia,AU
+505,20,Ausgrid Corporation,Australia,AU
+505,21,Queensland Rail,Australia,AU
+505,22,iiNet,Australia,AU
+505,23,Vocus,Australia,AU
+505,24,Advanced Communications Technologies,Australia,AU
+505,25,Pilbara Iron,Australia,AU
+505,26,Sinch Australia,Australia,AU
+505,27,Ergon Energy Telecommunications,Australia,AU
+505,28,RCOM International,Australia,AU
+505,30,Compatel,Australia,AU
+505,31,BHP,Australia,AU
+505,32,Thales Australia,Australia,AU
+505,33,Sinch Australia,Australia,AU
+505,34,Santos,Australia,AU
+505,35,Bird.com,Australia,AU
+505,36,Optus,Australia,AU
+505,37,Yancoal,Australia,AU
+505,38,Truphone,Australia,AU
+505,39,Telstra,Australia,AU
+505,40,CITIC Pacific Mining,Australia,AU
+505,41,Aqura Technologies,Australia,AU
+505,42,GEMCO,Australia,AU
+505,43,Arrow Energy,Australia,AU
+505,44,Roy Hill,Australia,AU
+505,45,Clermont Coal Operations,Australia,AU
+505,46,AngloGold Ashanti Australia Ltd,Australia,AU
+505,47,Woodside Energy,Australia,AU
+505,48,Titan ICT,Australia,AU
+505,49,Field Solutions Group,Australia,AU
+505,50,Pivotel Group,Australia,AU
+505,51,Fortescue,Australia,AU
+505,52,OptiTel Australia,Australia,AU
+505,53,Shell Australia,Australia,AU
+505,54,Nokia,Australia,AU
+505,55,New South Wales Government Telecommunications Authority,Australia,AU
+505,56,Nokia,Australia,AU
+505,57,CiFi,Australia,AU
+505,58,Wi-Sky,Australia,AU
+505,59,Starlink,Australia,AU
+505,60,Starlink,Australia,AU
+505,61,CommTel NS,Australia,AU
+505,62,NBN,Australia,AU
+505,63,MarchNet,Australia,AU
+505,68,NBN,Australia,AU
+505,71,Telstra,Australia,AU
+505,72,Telstra,Australia,AU
+505,88,Pivotel Group,Australia,AU
+505,90,Alphawest,Australia,AU
+505,99,Telstra,Australia,AU
 510,,,Indonesia,ID
 510,0,PSN,Indonesia,ID
 510,1,Indosat,Indonesia,ID

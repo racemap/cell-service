@@ -53,10 +53,11 @@ independently:
 
 Clients MUST fall back to showing the raw numeric identifiers for whichever fields are `null`.
 
-`country` and `countryCode` degrade independently: 107 rows carry a country with no code, because
-the upstream code is a multi-territory list (`AU/CX/CC/NF`) or a subdivision (`GE-AB`) rather than
-an alpha-2. Australia is the largest affected country. Do not treat a present `country` as a
-guarantee that `countryCode` is present.
+`country` and `countryCode` degrade independently: 35 rows carry a country with no code, because
+upstream lists a multi-territory grouping that has no alpha-2 of its own — `BQ/CW/SX` (Former
+Netherlands Antilles), `BL/GF/GP/MF/MQ` (French Antilles), `YT/RE` (French Departments and
+Territories in the Indian Ocean). Do not treat a present `country` as a guarantee that
+`countryCode` is present.
 
 The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
 hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
@@ -70,6 +71,11 @@ git diff src/utils/mcc-mnc.csv        # review like any other change
 Where one MNC is registered across several territories (Airtel-Vodafone in Guernsey, Jersey and
 the UK; Docomo in Guam, the Northern Marianas and the USA) no MNC can disambiguate them, so the
 table reports the umbrella country rather than guessing a territory.
+
+The two fields may therefore name different granularities. MCC 505 reports `Australia` / `AU` even
+though upstream codes it `AU/CC/CX`, because the umbrella country has its own alpha-2. MCC 289
+reports `Abkhazia` / `GE`: upstream codes it `GE-AB`, a subdivision, so the code names the sovereign
+state while the country names the territory.
 
 ## Requirements
 
