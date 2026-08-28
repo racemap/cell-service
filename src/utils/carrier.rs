@@ -95,7 +95,10 @@ mod tests {
     fn test_multi_country_mcc_uses_row_country() {
         let carrier = lookup(310, 120);
 
-        assert_eq!(carrier.country.as_deref(), Some("United States Virgin Islands"));
+        assert_eq!(
+            carrier.country.as_deref(),
+            Some("United States Virgin Islands")
+        );
         assert_eq!(carrier.country_code.as_deref(), Some("VI"));
     }
 }

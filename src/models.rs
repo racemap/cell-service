@@ -358,7 +358,11 @@ mod tests {
                     .unwrap();
 
             for key in ["operator", "country", "countryCode"] {
-                assert_eq!(json.get(key), Some(&serde_json::Value::Null), "{key} missing");
+                assert_eq!(
+                    json.get(key),
+                    Some(&serde_json::Value::Null),
+                    "{key} missing"
+                );
             }
         }
 

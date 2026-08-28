@@ -1,10 +1,10 @@
-FROM rust:1.92.0-trixie AS builder
+FROM rust:1.98.0-trixie AS builder
 WORKDIR /usr/src/racemap-cell-service
 COPY . .
 RUN cargo install diesel_cli --no-default-features --features mysql
 RUN cargo install --path .
 
-FROM rust:1.92.0-slim-trixie
+FROM rust:1.98.0-slim-trixie
 
 RUN apt-get update && apt-get install -y default-libmysqlclient-dev libssl-dev && rm -rf /var/lib/apt/lists/*
 

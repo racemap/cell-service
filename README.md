@@ -61,7 +61,7 @@ table reports the umbrella country rather than guessing a territory.
 
 ## Requirements
 
-- Rust 1.92.0+
+- Rust 1.98.0 (pinned in `rust-toolchain.toml`; requires rustup)
 - MySQL/MariaDB database
 - Docker (optional, for containerized deployment)
 
