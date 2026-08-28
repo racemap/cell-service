@@ -20,11 +20,12 @@ SOURCE = (
 # Better-attested rows win a duplicate (mcc, mnc) key; everything else ranks equal.
 STATUS_RANK = {"operational": 0, "temporary operational": 1}
 
-# Upstream lists these as territory lists ("AU/CC/CX") but names the umbrella country, which has
-# its own alpha-2. Keyed by name: upstream reorders territory lists more readily than it renames
-# countries. One verified entry at a time — a general "first segment" rule would corrupt the
-# groupings that have no alpha-2 of their own ("French Antilles" is not Saint Barthélemy).
-UMBRELLA_CODES = {"Australia": "AU"}
+# Countries whose upstream code is not alpha-2 but is still recoverable: Australia is a territory
+# list ("AU/CC/CX") naming the umbrella, which has its own code; Abkhazia is a subdivision
+# ("GE-AB") whose sovereign parent does. Keyed by name — upstream reorders territory lists more
+# readily than it renames countries. Every entry is verified by hand: no rule infers a code from
+# the string, so a new grouping drops to null and shows up in this script's dropped-codes report.
+COUNTRY_CODES = {"Australia": "AU", "Abkhazia": "GE"}
 
 
 def clean_country(name):
@@ -44,12 +45,7 @@ def normalize(record):
         return None  # a few MNC values are ranges or notes, not codes
     source_code = record.get("countryCode") or ""
     country = clean_country(record.get("countryName"))
-    code = source_code
-    if len(code) != 2:
-        # "GE-AB" is ISO 3166-2; the sovereign parent precedes the dash. Multi-territory codes
-        # ("BQ/CW/SX") resolve only where the umbrella country has a code of its own.
-        resolved = code.split("-")[0] if "-" in code else UMBRELLA_CODES.get(country, "")
-        code = resolved if len(resolved) == 2 else ""
+    code = source_code if len(source_code) == 2 else COUNTRY_CODES.get(country, "")
     return {
         "mcc": int(record["mcc"]),
         "mnc": mnc,
