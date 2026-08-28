@@ -93,6 +93,22 @@ mod tests {
     }
 
     #[test]
+    fn test_non_alpha2_source_codes_resolve() {
+        assert_eq!(lookup(505, 1).country_code.as_deref(), Some("AU")); // source "AU/CC/CX"
+        assert_eq!(lookup(289, 67).country_code.as_deref(), Some("GE")); // source "GE-AB"
+    }
+
+    #[test]
+    fn test_unresolvable_code_keeps_country_and_nulls_the_code() {
+        // Source code "BL/GF/GP/MF/MQ" is a grouping with no alpha-2 of its own.
+        let carrier = lookup(340, 1);
+
+        assert_eq!(carrier.operator.as_deref(), Some("Orange"));
+        assert_eq!(carrier.country.as_deref(), Some("French Antilles"));
+        assert_eq!(carrier.country_code, None);
+    }
+
+    #[test]
     fn test_multi_country_mcc_uses_row_country() {
         let carrier = lookup(310, 120);
 

@@ -20,6 +20,13 @@ SOURCE = (
 # Better-attested rows win a duplicate (mcc, mnc) key; everything else ranks equal.
 STATUS_RANK = {"operational": 0, "temporary operational": 1}
 
+# Countries whose upstream code is not alpha-2 but is still recoverable: Australia is a territory
+# list ("AU/CC/CX") naming the umbrella, which has its own code; Abkhazia is a subdivision
+# ("GE-AB") whose sovereign parent does. Keyed by name — upstream reorders territory lists more
+# readily than it renames countries. Every entry is verified by hand: no rule infers a code from
+# the string, so a new grouping drops to null and shows up in this script's dropped-codes report.
+COUNTRY_CODES = {"Australia": "AU", "Abkhazia": "GE"}
+
 
 def clean_country(name):
     """"Guam (United States of America)" -> "Guam"."""
@@ -36,15 +43,17 @@ def normalize(record):
         mnc = int(record["mnc"])
     except (TypeError, ValueError):
         return None  # a few MNC values are ranges or notes, not codes
-    code = record.get("countryCode") or ""
+    source_code = record.get("countryCode") or ""
+    country = clean_country(record.get("countryName"))
+    code = source_code if len(source_code) == 2 else COUNTRY_CODES.get(country, "")
     return {
         "mcc": int(record["mcc"]),
         "mnc": mnc,
         "operator": record.get("brand") or record.get("operator") or "",
-        "country": clean_country(record.get("countryName")),
-        # Multi-territory codes ("BQ/CW/SX") and subdivisions ("GE-AB") are not alpha-2.
-        "country_code": code if len(code) == 2 else "",
+        "country": country,
+        "country_code": code,
         "rank": STATUS_RANK.get((record.get("status") or "").strip().lower(), 9),
+        "source_code": source_code,  # reported at the end of a run; DictWriter ignores it
     }
 
 
@@ -52,8 +61,9 @@ def main():
     """Fetch the upstream list and write the lookup table Rust compiles in.
 
     Every ambiguity is resolved here rather than at runtime: duplicate keys collapse by
-    status then by the MCC's dominant country, non-alpha-2 country codes drop, and each MCC
-    gets an mnc-less fallback row. Output is sorted so the committed diff stays reviewable.
+    status then by the MCC's dominant country, non-alpha-2 country codes resolve or drop, and
+    each MCC gets an mnc-less fallback row. Output is sorted so the committed diff stays
+    reviewable.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", default=SOURCE)
@@ -102,6 +112,14 @@ def main():
         writer.writerows(out)
 
     print(f"{args.out}: {len(out)} rows ({len(main_country)} MCC fallbacks)")
+
+    # Silent drops are how the missing Australian codes went unnoticed. Report, do not raise:
+    # upstream legitimately carries groupings with no alpha-2, so a hard failure would be muted.
+    unresolved = collections.Counter(
+        row["source_code"] for row in rows if not row["country_code"] and row["source_code"]
+    )
+    for code, count in unresolved.most_common():
+        print(f"  dropped non-alpha-2 country code {code!r}: {count} rows")
 
 
 if __name__ == "__main__":
