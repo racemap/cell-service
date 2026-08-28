@@ -12,6 +12,14 @@ pub fn health_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::R
     warp::path!("health").map(|| "OK")
 }
 
+/// Returns the carrier lookup route filter. Takes no config: the lookup table is compiled in, so
+/// there is no database connection to establish.
+pub fn carrier_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("carrier")
+        .and(warp::query::<handlers::carrier::GetCarrierQuery>())
+        .map(handlers::carrier::handle_get_carrier)
+}
+
 /// Creates a CORS filter based on the configured origins.
 /// If CORS_ORIGINS is set, only those origins are allowed.
 /// If CORS_ORIGINS is not set or empty, all origins are allowed.
@@ -62,7 +70,7 @@ pub async fn start_server(shutdown_receiver: Receiver<()>, config: Config) -> Pr
 
     let cors = cors_filter(cors_origins);
     let routes = warp::get()
-        .and(health_route().or(get_cell).or(get_cells))
+        .and(health_route().or(get_cell).or(get_cells).or(carrier_route()))
         .with(cors);
 
     let (_, server) = warp::serve(routes).bind_with_graceful_shutdown((bind, port), async {
@@ -105,6 +113,93 @@ mod tests {
                 .await;
 
             assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        }
+    }
+
+    mod carrier_endpoint {
+        use super::*;
+        use warp::http::StatusCode;
+        use warp::test::request;
+
+        #[tokio::test]
+        async fn test_known_pair_returns_operator_and_country() {
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=262&net=2")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body: serde_json::Value = serde_json::from_slice(response.body()).unwrap();
+            assert_eq!(body["operator"], "Vodafone");
+            assert_eq!(body["country"], "Germany");
+            assert_eq!(body["countryCode"], "DE");
+        }
+
+        #[tokio::test]
+        async fn test_mnc_is_accepted_as_an_alias_for_net() {
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=262&mnc=2")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body: serde_json::Value = serde_json::from_slice(response.body()).unwrap();
+            assert_eq!(body["operator"], "Vodafone");
+        }
+
+        #[tokio::test]
+        async fn test_unknown_mnc_keeps_country_and_stays_ok() {
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=262&net=999")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let body: serde_json::Value = serde_json::from_slice(response.body()).unwrap();
+            assert!(body["operator"].is_null());
+            assert_eq!(body["country"], "Germany");
+            assert_eq!(body["countryCode"], "DE");
+        }
+
+        #[tokio::test]
+        async fn test_unknown_mcc_returns_not_found() {
+            // 265 is absent from the table entirely, unlike 999, which is a real test range.
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=265&net=1")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            assert_eq!(response.body(), "null");
+        }
+
+        /// 999 has rows but no country fallback row, so an unmatched MNC under it resolves to
+        /// nothing at all. 404 is deliberate: a 200 here would carry three nulls and no country.
+        #[tokio::test]
+        async fn test_known_mcc_without_fallback_row_returns_not_found() {
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=999&net=1")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            assert_eq!(response.body(), "null");
+        }
+
+        #[tokio::test]
+        async fn test_missing_net_is_rejected() {
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=262")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         }
     }
 

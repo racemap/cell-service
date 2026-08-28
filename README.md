@@ -53,6 +53,11 @@ independently:
 
 Clients MUST fall back to showing the raw numeric identifiers for whichever fields are `null`.
 
+`country` and `countryCode` degrade independently: 107 rows carry a country with no code, because
+the upstream code is a multi-territory list (`AU/CX/CC/NF`) or a subdivision (`GE-AB`) rather than
+an alpha-2. Australia is the largest affected country. Do not treat a present `country` as a
+guarantee that `countryCode` is present.
+
 The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
 hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
 [mcc-mnc-list](https://github.com/cavoq/mcc-mnc-list). To refresh:
@@ -178,6 +183,51 @@ curl "http://localhost:3000/cell?mcc=262&net=1&area=12345&cell=67890"
 ```
 
 Returns `null` if no cell is found.
+
+---
+
+### Get Carrier
+
+Resolve the operator and country for an MCC/MNC pair, without needing a cell.
+
+```
+GET /carrier?mcc=<mcc>&net=<mnc>
+```
+
+**Parameters:**
+
+| Parameter | Type    | Required | Description                                       |
+| --------- | ------- | -------- | ------------------------------------------------- |
+| `mcc`     | integer | Yes      | Mobile Country Code                               |
+| `net`     | integer | Yes      | Mobile Network Code. Also accepted as `mnc`       |
+
+**Example:**
+```bash
+curl "http://localhost:3000/carrier?mcc=262&net=2"
+```
+
+**Response:**
+```json
+{
+  "operator": "Vodafone",
+  "country": "Germany",
+  "countryCode": "DE"
+}
+```
+
+Served from the compiled-in table described under [Carrier Lookup](#carrier-lookup); no database
+access, so the same null contract applies. An MNC that is unknown under an MCC that has a country
+fallback row still returns `200` with `operator: null` and the country populated — 232 of the 238
+MCCs in the table have such a row.
+
+**This endpoint returns `404` with a body of `null` when the lookup resolves nothing at all** —
+either the MCC is absent from the table, or it is one of the six MCCs that have no country fallback
+row (`1`, `901`, `902`, `991`, `995`, `999`: test, satellite and internal-use ranges) and the MNC
+did not match either. In both cases there is no country to report, so a `200` would carry three
+nulls.
+
+This differs from `/cell`, which answers a miss with `200` and a body of `null`. Do not infer one
+from the other.
 
 ---
 
