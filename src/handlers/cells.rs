@@ -34,7 +34,7 @@ pub struct GetCellsQuery {
 #[serde(rename_all = "camelCase")]
 pub struct GetCellsResponse {
     /// The list of cells
-    pub cells: Vec<Cell>,
+    pub cells: Vec<CellWithCarrier>,
     /// The cursor for the next page, if there are more results
     pub next_cursor: Option<String>,
     /// Whether there are more results
@@ -213,7 +213,7 @@ pub fn query_cells(
     };
 
     Ok(GetCellsResponse {
-        cells: results,
+        cells: results.into_iter().map(CellWithCarrier::from).collect(),
         next_cursor,
         has_more,
     })

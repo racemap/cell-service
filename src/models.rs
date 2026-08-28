@@ -73,6 +73,40 @@ pub struct Cell {
     pub average_signal: Option<i16>,
 }
 
+/// `Cell` plus the human-readable carrier fields. Wraps rather than extends `Cell`, which is
+/// also the Diesel row type and must keep matching the `cells` columns.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CellWithCarrier {
+    // Named `inner`, not `cell`: `Cell` has its own `cell` field, which a matching name here
+    // would shadow instead of reaching through `Deref`.
+    #[serde(flatten)]
+    pub inner: Cell,
+    pub operator: Option<String>,
+    pub country: Option<String>,
+    pub country_code: Option<String>,
+}
+
+impl From<Cell> for CellWithCarrier {
+    fn from(cell: Cell) -> Self {
+        let carrier = crate::utils::carrier::lookup(cell.mcc, cell.net);
+        CellWithCarrier {
+            inner: cell,
+            operator: carrier.operator,
+            country: carrier.country,
+            country_code: carrier.country_code,
+        }
+    }
+}
+
+impl std::ops::Deref for CellWithCarrier {
+    type Target = Cell;
+
+    fn deref(&self) -> &Cell {
+        &self.inner
+    }
+}
+
 #[derive(Debug, FromSqlRow, AsExpression, PartialEq, Eq)]
 #[diesel(sql_type = LastUpdatesUpdateTypeEnum)]
 pub enum LastUpdatesType {
@@ -288,6 +322,48 @@ mod tests {
             let cell: Cell = serde_json::from_str(json).unwrap();
 
             assert!(!cell.changeable);
+        }
+
+        #[test]
+        fn test_serialize_keeps_all_existing_cell_fields() {
+            let cell = sample_cell();
+            let plain: serde_json::Value =
+                serde_json::from_str(&serde_json::to_string(&cell).unwrap()).unwrap();
+            let wrapped: serde_json::Value =
+                serde_json::from_str(&serde_json::to_string(&CellWithCarrier::from(cell)).unwrap())
+                    .unwrap();
+
+            for (key, value) in plain.as_object().unwrap() {
+                assert_eq!(wrapped.get(key), Some(value), "field {key} changed");
+            }
+        }
+
+        #[test]
+        fn test_serialize_emits_operator_country_countrycode() {
+            let wrapped = CellWithCarrier::from(sample_cell());
+            let json: serde_json::Value =
+                serde_json::from_str(&serde_json::to_string(&wrapped).unwrap()).unwrap();
+
+            assert_eq!(json["operator"], "Telekom");
+            assert_eq!(json["country"], "Germany");
+            assert_eq!(json["countryCode"], "DE");
+        }
+
+        #[test]
+        fn test_serialize_emits_null_not_missing_when_unknown() {
+            let mut cell = sample_cell();
+            cell.mcc = 999;
+            let json: serde_json::Value =
+                serde_json::from_str(&serde_json::to_string(&CellWithCarrier::from(cell)).unwrap())
+                    .unwrap();
+
+            for key in ["operator", "country", "countryCode"] {
+                assert_eq!(
+                    json.get(key),
+                    Some(&serde_json::Value::Null),
+                    "{key} missing"
+                );
+            }
         }
 
         #[test]

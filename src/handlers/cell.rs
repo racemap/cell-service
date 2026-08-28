@@ -20,7 +20,7 @@ pub struct GetCellQuery {
 pub fn query_cell(
     query: &GetCellQuery,
     connection: &mut MysqlConnection,
-) -> Result<Option<Cell>, diesel::result::Error> {
+) -> Result<Option<CellWithCarrier>, diesel::result::Error> {
     use crate::schema::cells::dsl::*;
 
     let mut db_query = cells.into_boxed();
@@ -35,8 +35,8 @@ pub fn query_cell(
         db_query = db_query.filter(radio.eq(search_radio));
     }
 
-    match db_query.first(connection) {
-        Ok(entry) => Ok(Some(entry)),
+    match db_query.first::<Cell>(connection) {
+        Ok(entry) => Ok(Some(entry.into())),
         Err(diesel::result::Error::NotFound) => Ok(None),
         Err(e) => Err(e),
     }

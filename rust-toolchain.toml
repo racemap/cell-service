@@ -1,0 +1,3 @@
+# Keep in sync with the Dockerfile's rust: tag.
+[toolchain]
+channel = "1.98.0"

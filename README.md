@@ -10,6 +10,7 @@ A Rust-based service for storing and querying cell tower location data. The serv
 - **Network Filtering**: Filter by MCC (Mobile Country Code) and MNC (Mobile Network Code)
 - **Radio Type Filtering**: Filter by radio technology (GSM, UMTS, CDMA, LTE, NR)
 - **Cursor-based Pagination**: Efficiently paginate through large result sets
+- **Carrier Lookup**: Resolves MCC/MNC to a human-readable operator, country and ISO country code
 
 ## Data Synchronization
 
@@ -32,20 +33,53 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
    - Yesterday (within 24h): Download today's diff file
    - Older: Download full dataset
 
+## Carrier Lookup
+
+`/cell` and `/cells` add three human-readable fields to every cell:
+
+| Field         | Derived from                                                                  | Example    |
+| ------------- | ----------------------------------------------------------------------------- | ---------- |
+| `operator`    | `mcc` + `net`                                                                 | `Vodafone` |
+| `country`     | `mcc` + `net`, falling back to the country most of that MCC's networks are in | `Germany`  |
+| `countryCode` | same as `country`, ISO 3166-1 alpha-2                                         | `DE`       |
+
+Unknown values are `null` — never an empty string and never a guess. The three degrade
+independently:
+
+- **MCC and MNC both known** — all three populated.
+- **MCC known, MNC not** — `operator` is `null`; `country` and `countryCode` still come from the
+  MCC fallback.
+- **MCC unknown** — all three `null`.
+
+Clients MUST fall back to showing the raw numeric identifiers for whichever fields are `null`.
+
+The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
+hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
+[mcc-mnc-list](https://github.com/cavoq/mcc-mnc-list). To refresh:
+
+```bash
+python3 scripts/update-mcc-mnc.py     # rewrites src/utils/mcc-mnc.csv
+git diff src/utils/mcc-mnc.csv        # review like any other change
+```
+
+Where one MNC is registered across several territories (Airtel-Vodafone in Guernsey, Jersey and
+the UK; Docomo in Guam, the Northern Marianas and the USA) no MNC can disambiguate them, so the
+table reports the umbrella country rather than guessing a territory.
+
 ## Requirements
 
-- Rust 1.92.0+
+- Rust 1.98.0 (pinned in `rust-toolchain.toml`; requires rustup)
 - MySQL/MariaDB database
 - Docker (optional, for containerized deployment)
 
 ## Environment Variables
 
-| Variable             | Description                                                                        | Example                                 |
-| -------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
-| `DATABASE_URL`       | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
-| `RUST_LOG`           | Log level                                                                          | `info`                                  |
-| `OPENCELLID_API_KEY` | API key for OpenCellDD downloads                                                   | `your-api-key`                          |
-| `CORS_ORIGINS`       | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
+| Variable                | Description                                                                        | Example                                 |
+| ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| `DATABASE_URL`          | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
+| `RUST_LOG`              | Log level                                                                          | `info`                                  |
+| `DOWNLOAD_SOURCE_TOKEN` | API key for OpenCellID downloads                                                   | `your-api-key`                          |
+| `CORS_ORIGINS`          | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
 
 ## Getting Started
 
@@ -78,7 +112,7 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
 
 ```bash
 docker build -t cell-service .
-docker run -e DATABASE_URL="mysql://user:pass@host/db" -e OPENCELLID_API_KEY="key" -p 3000:3000 cell-service
+docker run -e DATABASE_URL="mysql://user:pass@host/db" -e DOWNLOAD_SOURCE_TOKEN="key" -p 3000:3000 cell-service
 ```
 
 ## API Reference
@@ -133,10 +167,13 @@ curl "http://localhost:3000/cell?mcc=262&net=1&area=12345&cell=67890"
   "lat": 52.52,
   "cellRange": 1000,
   "samples": 50,
-  "changeable": true,
+  "changeable": 1,
   "created": "2024-01-15T10:30:00Z",
   "updated": "2025-12-20T14:00:00Z",
-  "averageSignal": -85
+  "averageSignal": -85,
+  "operator": "Telekom",
+  "country": "Germany",
+  "countryCode": "DE"
 }
 ```
 
@@ -191,10 +228,13 @@ curl "http://localhost:3000/cells?mcc=262&min_lat=52.3&max_lat=52.7&min_lon=13.1
       "lat": 52.52,
       "cellRange": 1000,
       "samples": 50,
-      "changeable": true,
+      "changeable": 1,
       "created": "2024-01-15T10:30:00Z",
       "updated": "2025-12-20T14:00:00Z",
-      "averageSignal": -85
+      "averageSignal": -85,
+      "operator": "Telekom",
+      "country": "Germany",
+      "countryCode": "DE"
     }
   ],
   "nextCursor": "TFRFOjI2MjoxOjEyMzQ1OjY3ODkw",
@@ -220,7 +260,11 @@ When `hasMore` is `false`, there are no more results.
 
 ### Lookup Multiple Cells (Batch)
 
-Lookup multiple cells by `(mcc, mnc, lac, cid)` in a single request.
+> **Not implemented.** No such route is registered in `src/utils/server.rs`; requests to it will
+> 404. This section is a design sketch for a planned endpoint, kept for reference. Do not build
+> against it.
+
+Look up multiple cells by `(mcc, mnc, lac, cid)` in a single request.
 
 This endpoint returns **one best match per input key**, aligned 1:1 with the request order.
 
@@ -276,10 +320,13 @@ curl -X POST "http://localhost:3000/cells/lookup" \
       "lat": 52.52,
       "cellRange": 1000,
       "samples": 50,
-      "changeable": true,
+      "changeable": 1,
       "created": "2024-01-15T10:30:00Z",
       "updated": "2025-12-20T14:00:00Z",
-      "averageSignal": -85
+      "averageSignal": -85,
+      "operator": "Telekom",
+      "country": "Germany",
+      "countryCode": "DE"
     },
     null
   ]
