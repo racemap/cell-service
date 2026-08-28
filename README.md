@@ -41,7 +41,7 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
 | ------------- | ----------------------------------------------------------------------------- | ---------- |
 | `operator`    | `mcc` + `net`                                                                 | `Vodafone` |
 | `country`     | `mcc` + `net`, falling back to the country most of that MCC's networks are in | `Germany`  |
-| `countryCode` | same as `country`, ISO 3166-1 alpha-2                                         | `DE`       |
+| `countryCode` | same as `country`, two-letter ISO 3166-1 alpha-2                              | `DE`       |
 
 Unknown values are `null` — never an empty string and never a guess. The three degrade
 independently:
@@ -58,6 +58,10 @@ upstream lists a multi-territory grouping that has no alpha-2 of its own — `BQ
 Netherlands Antilles), `BL/GF/GP/MF/MQ` (French Antilles), `YT/RE` (French Departments and
 Territories in the Indian Ocean). Do not treat a present `country` as a guarantee that
 `countryCode` is present.
+
+One code is not officially assigned: MCC 221 (Kosovo) reports `XK`, the user-assigned code the EU,
+IMF, SWIFT and CLDR all use because ISO has assigned Kosovo none. It is passed through as upstream
+gives it — a code that resolves everywhere in practice beats a `null`.
 
 The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
 hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
