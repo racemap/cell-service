@@ -56,6 +56,22 @@ The README documents a `POST /cells/lookup` batch endpoint; it is not implemente
 - `Radio` serializes as `SCREAMING_SNAKE_CASE` in JSON but lowercase in MySQL. Adding a variant means: migration altering the enum, `ToSql`/`FromSql` arms in `models.rs`, and `CellCursor::encode`/`decode` arms.
 - `Cell` is camelCase in JSON, accepts `range` as an alias for `cellRange`, and reads `changeable` from an int via `BoolFromInt`.
 - `schema.rs` is Diesel-generated — edit migrations, then regenerate.
+- `CellWithCarrier` wraps `Cell` for the wire (`#[serde(flatten)]` + `Deref`), adding `operator`,
+  `country`, `countryCode`. `Cell` stays the Diesel row type and MUST keep matching the `cells`
+  columns — never add response-only fields to it. The wrapper's inner field is `inner`, not `cell`,
+  because `Cell` has its own `cell` field that a matching name would shadow.
+
+### Carrier lookup
+
+`utils::carrier::lookup(mcc, net)` resolves the human-readable operator and country from
+`src/utils/mcc-mnc.csv`, compiled in via `include_str!` and parsed once into a `HashMap` on first
+call. Deliberately not a DB table: ~3,600 rows changing a few times a year do not justify a
+migration, a join, or a second download loop.
+
+The CSV is **generated — never hand-edit**. Refresh with `python3 scripts/update-mcc-mnc.py` and
+review the diff. A row with an empty `mnc` is that MCC's fallback country, used when the pair is
+unknown. The script resolves every ambiguity at generation time (duplicate keys, non-alpha-2
+country codes, multi-territory MNCs), so the Rust side is a plain map lookup.
 
 ## Testing
 

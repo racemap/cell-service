@@ -10,6 +10,7 @@ A Rust-based service for storing and querying cell tower location data. The serv
 - **Network Filtering**: Filter by MCC (Mobile Country Code) and MNC (Mobile Network Code)
 - **Radio Type Filtering**: Filter by radio technology (GSM, UMTS, CDMA, LTE, NR)
 - **Cursor-based Pagination**: Efficiently paginate through large result sets
+- **Carrier Lookup**: Resolves MCC/MNC to a human-readable operator, country and ISO country code
 
 ## Data Synchronization
 
@@ -31,6 +32,32 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
    - Same day: No update needed
    - Yesterday (within 24h): Download today's diff file
    - Older: Download full dataset
+
+## Carrier Lookup
+
+`/cell` and `/cells` add three human-readable fields to every cell:
+
+| Field         | Derived from                                                                  | Example    |
+| ------------- | ----------------------------------------------------------------------------- | ---------- |
+| `operator`    | `mcc` + `net`                                                                 | `Vodafone` |
+| `country`     | `mcc` + `net`, falling back to the country most of that MCC's networks are in | `Germany`  |
+| `countryCode` | same as `country`, ISO 3166-1 alpha-2                                         | `DE`       |
+
+All three are `null` when the combination is unknown — never an empty string and never a guess.
+Clients MUST fall back to showing the raw numeric identifiers in that case.
+
+The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
+hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
+[mcc-mnc-list](https://github.com/cavoq/mcc-mnc-list). To refresh:
+
+```bash
+python3 scripts/update-mcc-mnc.py     # rewrites src/utils/mcc-mnc.csv
+git diff src/utils/mcc-mnc.csv        # review like any other change
+```
+
+Where one MNC is registered across several territories (Airtel-Vodafone in Guernsey, Jersey and
+the UK; Docomo in Guam, the Northern Marianas and the USA) no MNC can disambiguate them, so the
+table reports the umbrella country rather than guessing a territory.
 
 ## Requirements
 
@@ -133,10 +160,13 @@ curl "http://localhost:3000/cell?mcc=262&net=1&area=12345&cell=67890"
   "lat": 52.52,
   "cellRange": 1000,
   "samples": 50,
-  "changeable": true,
+  "changeable": 1,
   "created": "2024-01-15T10:30:00Z",
   "updated": "2025-12-20T14:00:00Z",
-  "averageSignal": -85
+  "averageSignal": -85,
+  "operator": "Telekom",
+  "country": "Germany",
+  "countryCode": "DE"
 }
 ```
 
@@ -191,10 +221,13 @@ curl "http://localhost:3000/cells?mcc=262&min_lat=52.3&max_lat=52.7&min_lon=13.1
       "lat": 52.52,
       "cellRange": 1000,
       "samples": 50,
-      "changeable": true,
+      "changeable": 1,
       "created": "2024-01-15T10:30:00Z",
       "updated": "2025-12-20T14:00:00Z",
-      "averageSignal": -85
+      "averageSignal": -85,
+      "operator": "Telekom",
+      "country": "Germany",
+      "countryCode": "DE"
     }
   ],
   "nextCursor": "TFRFOjI2MjoxOjEyMzQ1OjY3ODkw",
@@ -276,10 +309,13 @@ curl -X POST "http://localhost:3000/cells/lookup" \
       "lat": 52.52,
       "cellRange": 1000,
       "samples": 50,
-      "changeable": true,
+      "changeable": 1,
       "created": "2024-01-15T10:30:00Z",
       "updated": "2025-12-20T14:00:00Z",
-      "averageSignal": -85
+      "averageSignal": -85,
+      "operator": "Telekom",
+      "country": "Germany",
+      "countryCode": "DE"
     },
     null
   ]
