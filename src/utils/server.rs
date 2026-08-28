@@ -166,6 +166,21 @@ mod tests {
 
         #[tokio::test]
         async fn test_unknown_mcc_returns_not_found() {
+            // 265 is absent from the table entirely, unlike 999, which is a real test range.
+            let response = request()
+                .method("GET")
+                .path("/carrier?mcc=265&net=1")
+                .reply(&carrier_route())
+                .await;
+
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            assert_eq!(response.body(), "null");
+        }
+
+        /// 999 has rows but no country fallback row, so an unmatched MNC under it resolves to
+        /// nothing at all. 404 is deliberate: a 200 here would carry three nulls and no country.
+        #[tokio::test]
+        async fn test_known_mcc_without_fallback_row_returns_not_found() {
             let response = request()
                 .method("GET")
                 .path("/carrier?mcc=999&net=1")

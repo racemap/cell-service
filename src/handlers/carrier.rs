@@ -20,8 +20,9 @@ pub fn handle_get_carrier(query: GetCarrierQuery) -> impl warp::Reply {
 
     // ponytail: an all-default result means neither the exact pair nor the MCC fallback row
     // matched. Only 6 of 238 MCCs lack a fallback row (1, 901, 902, 991, 995, 999 — test and
-    // satellite ranges), so this reads as "unknown MCC" everywhere it matters. Swap in an explicit
-    // MCC-membership check if those ranges ever need to 200 with nulls.
+    // satellite ranges), and their rows carry no country either, so a 200 would be three nulls.
+    // Pinned by `server::tests::carrier_endpoint::test_known_mcc_without_fallback_row_returns_not_found`.
+    // Swap in an explicit MCC-membership check if those ranges ever need to 200 with nulls.
     if carrier == Carrier::default() {
         return warp::reply::with_status(
             warp::reply::json(&serde_json::Value::Null),
