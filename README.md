@@ -43,8 +43,15 @@ The service automatically synchronizes cell tower data from [OpenCellID](https:/
 | `country`     | `mcc` + `net`, falling back to the country most of that MCC's networks are in | `Germany`  |
 | `countryCode` | same as `country`, ISO 3166-1 alpha-2                                         | `DE`       |
 
-All three are `null` when the combination is unknown — never an empty string and never a guess.
-Clients MUST fall back to showing the raw numeric identifiers in that case.
+Unknown values are `null` — never an empty string and never a guess. The three degrade
+independently:
+
+- **MCC and MNC both known** — all three populated.
+- **MCC known, MNC not** — `operator` is `null`; `country` and `countryCode` still come from the
+  MCC fallback.
+- **MCC unknown** — all three `null`.
+
+Clients MUST fall back to showing the raw numeric identifiers for whichever fields are `null`.
 
 The table is compiled into the binary from `src/utils/mcc-mnc.csv`, which is **generated — do not
 hand-edit**. It derives from the MIT-licensed, Wikipedia-sourced
@@ -71,7 +78,7 @@ table reports the umbrella country rather than guessing a territory.
 | ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
 | `DATABASE_URL`          | MySQL connection string                                                            | `mysql://user:pass@localhost/cells`     |
 | `RUST_LOG`              | Log level                                                                          | `info`                                  |
-| `DOWNLOAD_SOURCE_TOKEN` | API key for OpenCellDD downloads                                                   | `your-api-key`                          |
+| `DOWNLOAD_SOURCE_TOKEN` | API key for OpenCellID downloads                                                   | `your-api-key`                          |
 | `CORS_ORIGINS`          | Comma-separated list of allowed CORS origins (if not set, all origins are allowed) | `https://example.com,https://other.com` |
 
 ## Getting Started
@@ -105,7 +112,7 @@ table reports the umbrella country rather than guessing a territory.
 
 ```bash
 docker build -t cell-service .
-docker run -e DATABASE_URL="mysql://user:pass@host/db" -e OPENCELLID_API_KEY="key" -p 3000:3000 cell-service
+docker run -e DATABASE_URL="mysql://user:pass@host/db" -e DOWNLOAD_SOURCE_TOKEN="key" -p 3000:3000 cell-service
 ```
 
 ## API Reference
@@ -252,6 +259,10 @@ When `hasMore` is `false`, there are no more results.
 ---
 
 ### Lookup Multiple Cells (Batch)
+
+> **Not implemented.** No such route is registered in `src/utils/server.rs`; requests to it will
+> 404. This section is a design sketch for a planned endpoint, kept for reference. Do not build
+> against it.
 
 Lookup multiple cells by `(mcc, mnc, lac, cid)` in a single request.
 

@@ -25,7 +25,7 @@ diesel setup && diesel migration run        # create db + apply migrations
 diesel print-schema > src/schema.rs         # regenerate schema after a migration
 ```
 
-`CONFIG` panics at startup unless `DATABASE_URL` and `DOWNLOAD_SOURCE_TOKEN` are set. Copy `.env.example` to `.env` first. Note the README calls the token `OPENCELLID_API_KEY`; the code reads `DOWNLOAD_SOURCE_TOKEN`.
+`CONFIG` panics at startup unless `DATABASE_URL` and `DOWNLOAD_SOURCE_TOKEN` are set. Copy `.env.example` to `.env` first.
 
 Other env vars (all optional, `src/utils/config.rs`): `TEMP_FOLDER`, `DOWNLOAD_SOURCE_URL`, `PORT` (3000), `BIND` (0.0.0.0), `CORS_ORIGINS`, `SERVICE_NAME`, `RUST_LOG`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_TRACES_COLLECTOR_URL`, `OTEL_DEBUG_TRACES`.
 
